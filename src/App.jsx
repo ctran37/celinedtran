@@ -137,7 +137,7 @@ export default function App() {
             marginTop: 6,
             fontWeight: 300,
           }}>
-            designer & developer
+            software engineer
           </p>
         </div>
         <nav style={{ display: "flex", gap: 24 }}>
