@@ -343,6 +343,35 @@ a {
   font-weight: 400;
 }
 
+/* Actual real-world winner (winner_id is set for this match) */
+.bracket-slot {
+  position: relative;
+}
+.bracket-slot-winner {
+  box-shadow: inset 3px 0 0 #3d8a4f;
+}
+.bracket-slot-check {
+  color: #3d8a4f;
+  font-weight: 600;
+  margin-left: 6px;
+  font-size: 11px;
+}
+.bracket-slot-advanced.bracket-slot-winner {
+  /* user picked correctly — keep dark, but checkmark + accent stays */
+  box-shadow: inset 3px 0 0 #6fc97e;
+}
+.bracket-slot-advanced .bracket-slot-check {
+  color: #6fc97e;
+}
+
+/* Eliminated: real-world loser of this match — dim + strikethrough */
+.bracket-slot-eliminated {
+  opacity: 0.42;
+}
+.bracket-slot-eliminated .bracket-slot-name {
+  text-decoration: line-through;
+}
+
 .bracket-slot-empty {
   color: #ddd;
   font-style: italic;

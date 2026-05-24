@@ -116,30 +116,47 @@ export default function BracketStadium({ matchupsForRound, picks }) {
 }
 
 function BracketMatch({ matchup, pickedId, isFinal }) {
+  const winnerId = matchup.winnerId ?? null;
+  const settled = !!winnerId;
+  const isLoser = (player) =>
+    settled && !!player && player.id !== winnerId;
   return (
     <div className={`bracket-match${isFinal ? " bracket-match-final" : ""}`}>
       <BracketSlot
         player={matchup.player1}
         picked={pickedId && pickedId === matchup.player1?.id}
+        isWinner={winnerId && winnerId === matchup.player1?.id}
+        isEliminated={isLoser(matchup.player1)}
       />
       <BracketSlot
         player={matchup.player2}
         picked={pickedId && pickedId === matchup.player2?.id}
+        isWinner={winnerId && winnerId === matchup.player2?.id}
+        isEliminated={isLoser(matchup.player2)}
       />
     </div>
   );
 }
 
-function BracketSlot({ player, picked }) {
+function BracketSlot({ player, picked, isWinner, isEliminated }) {
   if (!player) {
     return <div className="bracket-slot bracket-slot-empty">—</div>;
   }
+  const cls = [
+    "bracket-slot",
+    picked && "bracket-slot-advanced",
+    isWinner && "bracket-slot-winner",
+    isEliminated && "bracket-slot-eliminated",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={`bracket-slot${picked ? " bracket-slot-advanced" : ""}`}>
+    <div className={cls}>
       {player.seed != null && (
         <span className="bracket-slot-seed">[{player.seed}]</span>
       )}
       <span className="bracket-slot-name">{player.name}</span>
+      {isWinner && <span className="bracket-slot-check">✓</span>}
     </div>
   );
 }

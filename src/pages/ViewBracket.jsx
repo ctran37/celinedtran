@@ -101,6 +101,7 @@ export default function ViewBracket() {
         matchNumber: m.match_number,
         player1: m.player1,
         player2: m.player2,
+        winnerId: m.winner_id ?? null,
       }));
     }
     return roundMatches.map((m) => {
@@ -113,6 +114,7 @@ export default function ViewBracket() {
         matchNumber: m.match_number,
         player1: p1id ? playersById[p1id] : null,
         player2: p2id ? playersById[p2id] : null,
+        winnerId: m.winner_id ?? null,
       };
     });
   };

@@ -43,8 +43,8 @@ export default function TournamentHome() {
               .from("matches")
               .select(
                 `id, draw_id, round, match_number, player1_id, player2_id, winner_id,
-                 player1:player1_id (id, seed),
-                 player2:player2_id (id, seed)`
+                 player1:player1_id (id, name, seed),
+                 player2:player2_id (id, name, seed)`
               )
               .in("draw_id", drawIds)
           : Promise.resolve({ data: [], error: null });
@@ -99,22 +99,39 @@ export default function TournamentHome() {
     return map;
   }, [matches]);
 
+  // For each draw, the final match (round 7) — used to find each bracket's champion pick.
+  const finalMatchByDraw = useMemo(() => {
+    const map = {};
+    for (const m of matches) {
+      if (m.round === 7) map[m.draw_id] = m;
+    }
+    return map;
+  }, [matches]);
+
   const scored = useMemo(() => {
     return brackets
       .map((b) => {
+        const bracketPicks = picksByBracket[b.id] ?? [];
         const score = scoreBracket({
-          picks: picksByBracket[b.id] ?? [],
+          picks: bracketPicks,
           matches,
           playersById,
         });
-        return { ...b, score };
+        const finalMatch = finalMatchByDraw[b.draw_id];
+        const finalPick = finalMatch
+          ? bracketPicks.find((p) => p.match_id === finalMatch.id)
+          : null;
+        const champion = finalPick
+          ? playersById[finalPick.picked_winner_id] ?? null
+          : null;
+        return { ...b, score, champion };
       })
       .sort((a, b) => {
         // Highest score first, ties broken by earliest submission (rewards being early)
         if (b.score.total !== a.score.total) return b.score.total - a.score.total;
         return new Date(a.created_at) - new Date(b.created_at);
       });
-  }, [brackets, picksByBracket, matches, playersById]);
+  }, [brackets, picksByBracket, matches, playersById, finalMatchByDraw]);
 
   const anyMatchesSettled = useMemo(
     () => matches.some((m) => m.winner_id),
@@ -243,10 +260,23 @@ export default function TournamentHome() {
                   style={{
                     fontSize: 11,
                     color: "#999",
-                    letterSpacing: "0.08em",
+                    letterSpacing: "0.04em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {b.draws.gender} · {formatShortDate(b.created_at)}
+                  {b.draws.gender} {" "}
+                  {b.champion ? (
+                    <>
+                      pick:{" "}
+                      <span style={{ color: "#1a1814" }}>{b.champion.name}</span>
+                      {b.champion.seed != null && (
+                        <span style={{ color: "#bbb" }}> [{b.champion.seed}]</span>
+                      )}
+                      <span style={{ color: "#ccc" }}> · </span>
+                    </>
+                  ) : null}
                 </span>
                 <span
                   className="mono"
@@ -272,12 +302,4 @@ function formatDateRange(start, end) {
     "en-US",
     { ...opts, year: "numeric" }
   )}`;
-}
-
-function formatShortDate(iso) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 }
