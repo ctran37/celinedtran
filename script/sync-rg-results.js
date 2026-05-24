@@ -8,7 +8,7 @@
 //
 // --dry-run logs every update it WOULD make without writing to Supabase.
 //
-// Reads SUPABASE_URL and SUPABASE_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY fallback)
+// Reads VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
 // from env. RG endpoint requires no auth.
 
 import { createClient } from "@supabase/supabase-js";
@@ -71,7 +71,7 @@ async function main() {
 
   if (!url || !key) {
     console.error(
-      "Missing env vars. Set SUPABASE_URL and SUPABASE_KEY in .env (or run with --env-file=.env)."
+      "Missing env vars. Set SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env (or run with --env-file=.env)."
     );
     process.exit(1);
   }
