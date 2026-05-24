@@ -1,0 +1,28 @@
+name: Sync Roland Garros Results
+
+on:
+  schedule:
+    # Hourly between 5am and 10pm ET (EDT = UTC-4 during the tournament window).
+    # Cron in UTC: 9, 10, ..., 23, 0, 1, 2 = 5am EDT through 10pm EDT.
+    - cron: "0 9-23,0-2 * * *"
+  workflow_dispatch: # manual trigger from the Actions tab
+
+concurrency:
+  group: sync-results
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node script/sync-rg-results.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
