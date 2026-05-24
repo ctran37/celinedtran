@@ -1,10 +1,20 @@
-// seed-roland-garros-2026.js
-// Run with: node seed-roland-garros-2026.js
+// Run with: node --env-file=.env script/seed-roland-garros-2026.js
+//
+// Reads SUPABASE_URL and SUPABASE_KEY from .env.
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://ucemvnousyelnamiacfb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_2tvx_jCWYjxrrjT1gIhSRg_EsRFtNED'; // use service role key for seeding
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error(
+    'Missing env vars. Set SUPABASE_URL and SUPABASE_KEY in .env, then run:\n' +
+      '  node --env-file=.env script/seed-roland-garros-2026.js'
+  );
+  process.exit(1);
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─── RAW DRAW DATA ────────────────────────────────────────────────────────────
