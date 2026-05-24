@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import BracketStadium from "../components/BracketStadium.jsx";
-import { TOTAL_ROUNDS } from "../lib/rounds.js";
+import { TOTAL_ROUNDS, roundName } from "../lib/rounds.js";
+import { scoreBracket, ROUND_POINTS } from "../lib/scoring.js";
 
 export default function ViewBracket() {
   const { id } = useParams();
@@ -116,6 +117,15 @@ export default function ViewBracket() {
     });
   };
 
+  // Score against actual results — relies on matches.winner_id being populated.
+  const score = useMemo(() => {
+    const pickRows = Object.entries(picks).map(([match_id, picked_winner_id]) => ({
+      match_id,
+      picked_winner_id,
+    }));
+    return scoreBracket({ picks: pickRows, matches, playersById });
+  }, [picks, matches, playersById]);
+
   if (loading) {
     return <p className="mono" style={{ color: "#999" }}>loading…</p>;
   }
@@ -180,36 +190,90 @@ export default function ViewBracket() {
 
       <div
         style={{
-          padding: 28,
-          background: "#fdfbf6",
-          border: "1px solid #eee5d8",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
           marginBottom: 40,
         }}
       >
-        <p className="label-eyebrow" style={{ marginBottom: 8 }}>
-          Predicted champion
-        </p>
-        <p
+        <div
           style={{
-            fontSize: 30,
-            fontStyle: "italic",
-            color: "#2a2520",
+            padding: 24,
+            background: "#fdfbf6",
+            border: "1px solid #eee5d8",
           }}
         >
-          {champion ? (
-            <>
-              {champion.name}
-              {champion.seed != null && (
-                <span style={{ fontSize: 15, color: "#999", marginLeft: 8 }}>
-                  [{champion.seed}]
-                </span>
-              )}
-            </>
-          ) : (
-            "—"
-          )}
-        </p>
+          <p className="label-eyebrow" style={{ marginBottom: 8 }}>
+            Predicted champion
+          </p>
+          <p
+            style={{
+              fontSize: 26,
+              fontStyle: "italic",
+              color: "#2a2520",
+              lineHeight: 1.2,
+            }}
+          >
+            {champion ? (
+              <>
+                {champion.name}
+                {champion.seed != null && (
+                  <span style={{ fontSize: 14, color: "#999", marginLeft: 8 }}>
+                    [{champion.seed}]
+                  </span>
+                )}
+              </>
+            ) : (
+              "—"
+            )}
+          </p>
+        </div>
+
+        <div
+          style={{
+            padding: 24,
+            background: "#1a1814",
+            color: "#faf8f5",
+            border: "1px solid #1a1814",
+          }}
+        >
+          <p
+            className="label-eyebrow"
+            style={{ marginBottom: 8, color: "#aaa" }}
+          >
+            Score
+          </p>
+          <p
+            style={{
+              fontFamily: "'DM Mono', monospace",
+              fontSize: 28,
+              fontWeight: 400,
+              lineHeight: 1.2,
+            }}
+          >
+            {score.total}
+            <span
+              style={{
+                fontSize: 11,
+                color: "#aaa",
+                marginLeft: 6,
+                letterSpacing: "0.1em",
+              }}
+            >
+              PTS
+            </span>
+          </p>
+          <p
+            className="mono"
+            style={{ fontSize: 11, color: "#aaa", marginTop: 6 }}
+          >
+            {score.correctCount} / {score.settledCount} correct
+            {score.settledCount === 0 && " · waiting on results"}
+          </p>
+        </div>
       </div>
+
+      <ScoreBreakdown score={score} />
 
       <BracketStadium matchupsForRound={matchupsForRound} picks={picks} />
     </div>
@@ -223,4 +287,75 @@ function parseSupabaseTimestamp(s) {
   if (!s) return new Date(NaN);
   const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(s);
   return new Date(hasTz ? s : s + "Z");
+}
+
+function ScoreBreakdown({ score }) {
+  if (score.settledCount === 0) return null;
+  const rounds = [1, 2, 3, 4, 5, 6, 7];
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <h3 className="label-eyebrow" style={{ marginBottom: 12 }}>
+        Score by round
+      </h3>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+          border: "1px solid #eee5d8",
+        }}
+      >
+        {rounds.map((r) => {
+          const pts = score.byRound[r] ?? 0;
+          const maxBase = ROUND_POINTS[r];
+          const hasPoints = pts > 0;
+          return (
+            <div
+              key={r}
+              style={{
+                padding: "12px 8px",
+                textAlign: "center",
+                background: hasPoints ? "#fdfbf6" : "transparent",
+                borderRight: r < 7 ? "1px solid #eee5d8" : "none",
+              }}
+            >
+              <p
+                className="label-eyebrow"
+                style={{ fontSize: 9, marginBottom: 4 }}
+              >
+                {roundName(r)}
+              </p>
+              <p
+                style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: 15,
+                  color: hasPoints ? "#1a1814" : "#ccc",
+                  fontWeight: hasPoints ? 400 : 300,
+                }}
+              >
+                {pts}
+              </p>
+              <p
+                style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: 9,
+                  color: "#bbb",
+                  marginTop: 2,
+                }}
+              >
+                /{maxBase}+
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <p
+        className="mono"
+        style={{ fontSize: 10, color: "#aaa", marginTop: 8 }}
+      >
+        Base per correct pick doubles each round (R1=10 → F=640). Bonus added
+        for upsets (when your pick was the higher-seeded player).
+      </p>
+    </div>
+  );
 }

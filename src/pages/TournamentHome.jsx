@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
+import { scoreBracket } from "../lib/scoring.js";
 
 const TOURNAMENT_SLUG = "roland-garros-2026";
 
@@ -9,6 +10,8 @@ export default function TournamentHome() {
   const [error, setError] = useState(null);
   const [tournament, setTournament] = useState(null);
   const [brackets, setBrackets] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [picksByBracket, setPicksByBracket] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -23,14 +26,55 @@ export default function TournamentHome() {
 
         const { data: b, error: bErr } = await supabase
           .from("brackets")
-          .select("id, participant_name, created_at, draws!inner(gender, tournament_id)")
+          .select(
+            "id, participant_name, created_at, draw_id, draws!inner(id, gender, tournament_id)"
+          )
           .eq("draws.tournament_id", t.id)
           .order("created_at", { ascending: false });
         if (bErr) throw bErr;
 
+        const bracketsList = b ?? [];
+        const drawIds = [...new Set(bracketsList.map((br) => br.draw_id))];
+
+        // Pull matches for all involved draws so we know winner_id + player seeds.
+        // Player records are nested so we can build playersById without a separate query.
+        const matchesPromise = drawIds.length
+          ? supabase
+              .from("matches")
+              .select(
+                `id, draw_id, round, match_number, player1_id, player2_id, winner_id,
+                 player1:player1_id (id, seed),
+                 player2:player2_id (id, seed)`
+              )
+              .in("draw_id", drawIds)
+          : Promise.resolve({ data: [], error: null });
+
+        // Pull all picks across all brackets in one query.
+        const bracketIds = bracketsList.map((br) => br.id);
+        const picksPromise = bracketIds.length
+          ? supabase
+              .from("bracket_picks")
+              .select("bracket_id, match_id, picked_winner_id")
+              .in("bracket_id", bracketIds)
+          : Promise.resolve({ data: [], error: null });
+
+        const [matchesRes, picksRes] = await Promise.all([
+          matchesPromise,
+          picksPromise,
+        ]);
+        if (matchesRes.error) throw matchesRes.error;
+        if (picksRes.error) throw picksRes.error;
+
+        const picksMap = {};
+        for (const p of picksRes.data ?? []) {
+          (picksMap[p.bracket_id] ??= []).push(p);
+        }
+
         if (!cancelled) {
           setTournament(t);
-          setBrackets(b ?? []);
+          setBrackets(bracketsList);
+          setMatches(matchesRes.data ?? []);
+          setPicksByBracket(picksMap);
         }
       } catch (e) {
         if (!cancelled) setError(e.message ?? String(e));
@@ -42,6 +86,37 @@ export default function TournamentHome() {
       cancelled = true;
     };
   }, []);
+
+  const playersById = useMemo(() => {
+    const map = {};
+    for (const m of matches) {
+      if (m.player1) map[m.player1.id] = m.player1;
+      if (m.player2) map[m.player2.id] = m.player2;
+    }
+    return map;
+  }, [matches]);
+
+  const scored = useMemo(() => {
+    return brackets
+      .map((b) => {
+        const score = scoreBracket({
+          picks: picksByBracket[b.id] ?? [],
+          matches,
+          playersById,
+        });
+        return { ...b, score };
+      })
+      .sort((a, b) => {
+        // Highest score first, ties broken by earliest submission (rewards being early)
+        if (b.score.total !== a.score.total) return b.score.total - a.score.total;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+  }, [brackets, picksByBracket, matches, playersById]);
+
+  const anyMatchesSettled = useMemo(
+    () => matches.some((m) => m.winner_id),
+    [matches]
+  );
 
   if (loading) {
     return <p className="mono" style={{ color: "#999" }}>loading…</p>;
@@ -88,10 +163,12 @@ export default function TournamentHome() {
 
       <div>
         <h3 className="label-eyebrow" style={{ marginBottom: 16 }}>
-          Submitted brackets ({brackets.length})
+          {anyMatchesSettled
+            ? `Leaderboard (${scored.length})`
+            : `Submitted brackets (${scored.length})`}
         </h3>
 
-        {brackets.length === 0 ? (
+        {scored.length === 0 ? (
           <p
             className="mono"
             style={{ fontSize: 13, color: "#aaa", fontStyle: "italic" }}
@@ -100,18 +177,30 @@ export default function TournamentHome() {
           </p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {brackets.map((b) => (
+            {scored.map((b, idx) => (
               <li
                 key={b.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr auto auto",
-                  gap: 16,
+                  gridTemplateColumns: "28px 1fr auto",
+                  columnGap: 14,
+                  rowGap: 2,
                   alignItems: "baseline",
                   padding: "14px 0",
                   borderBottom: "1px solid #e8e4dd",
                 }}
               >
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 12,
+                    color: idx < 3 && anyMatchesSettled ? "#1a1814" : "#bbb",
+                    fontWeight: idx < 3 && anyMatchesSettled ? 400 : 300,
+                  }}
+                >
+                  {idx + 1}
+                </span>
+
                 <Link
                   to={`/roland-garros-2026/bracket/${b.id}`}
                   style={{
@@ -122,22 +211,45 @@ export default function TournamentHome() {
                 >
                   {b.participant_name}
                 </Link>
+
+                <span
+                  style={{
+                    fontFamily: "'DM Mono', monospace",
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: "#1a1814",
+                    textAlign: "right",
+                  }}
+                >
+                  {b.score.total}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#aaa",
+                      marginLeft: 4,
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    PTS
+                  </span>
+                </span>
+
+                <span /> {/* spacer under rank column */}
                 <span
                   className="mono"
                   style={{
-                    fontSize: 10,
-                    color: "#aaa",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
+                    fontSize: 11,
+                    color: "#999",
+                    letterSpacing: "0.08em",
                   }}
                 >
-                  {b.draws.gender}
+                  {b.draws.gender} · {formatShortDate(b.created_at)}
                 </span>
                 <span
                   className="mono"
-                  style={{ fontSize: 11, color: "#bbb" }}
+                  style={{ fontSize: 10, color: "#bbb", textAlign: "right" }}
                 >
-                  {formatShortDate(b.created_at)}
+                  {b.score.correctCount}/{b.score.settledCount} correct
                 </span>
               </li>
             ))}
