@@ -49,24 +49,27 @@ export default function TournamentHome() {
               .in("draw_id", drawIds)
           : Promise.resolve({ data: [], error: null });
 
-        // Pull all picks across all brackets in one query.
+        // Picks: paginated in small bracket-chunks so we never hit any
+        // PostgREST per-request row cap (default 1000). 7 brackets × 127 picks
+        // each = 889 picks max per request.
         const bracketIds = bracketsList.map((br) => br.id);
-        const picksPromise = bracketIds.length
-          ? supabase
-              .from("bracket_picks")
-              .select("bracket_id, match_id, picked_winner_id")
-              .in("bracket_id", bracketIds)
-          : Promise.resolve({ data: [], error: null });
+        const BRACKETS_PER_CHUNK = 7;
+        const allPicks = [];
+        for (let i = 0; i < bracketIds.length; i += BRACKETS_PER_CHUNK) {
+          const chunk = bracketIds.slice(i, i + BRACKETS_PER_CHUNK);
+          const { data: chunkPicks, error: pErr } = await supabase
+            .from("bracket_picks")
+            .select("bracket_id, match_id, picked_winner_id")
+            .in("bracket_id", chunk);
+          if (pErr) throw pErr;
+          allPicks.push(...(chunkPicks ?? []));
+        }
 
-        const [matchesRes, picksRes] = await Promise.all([
-          matchesPromise,
-          picksPromise,
-        ]);
+        const matchesRes = await matchesPromise;
         if (matchesRes.error) throw matchesRes.error;
-        if (picksRes.error) throw picksRes.error;
 
         const picksMap = {};
-        for (const p of picksRes.data ?? []) {
+        for (const p of allPicks) {
           (picksMap[p.bracket_id] ??= []).push(p);
         }
 

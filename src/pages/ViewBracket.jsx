@@ -34,7 +34,7 @@ export default function ViewBracket() {
           supabase
             .from("matches")
             .select(
-              `id, round, match_number, player1_id, player2_id,
+              `id, round, match_number, player1_id, player2_id, winner_id,
                player1:player1_id (id, name, nationality, seed),
                player2:player2_id (id, name, nationality, seed)`
             )
