@@ -192,3 +192,174 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── bracket: shared ─────────────────────────────── */
+.bracket-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0 calc(50% - 50vw);
+  padding: 0 32px 32px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bracket-labels {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.bracket-col-label {
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #999;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e8e4dd;
+}
+
+.bracket-grid {
+  display: grid;
+  gap: 8px;
+  min-height: 1600px;
+  padding: 0 4px;
+}
+
+.bracket-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 2px;
+}
+
+.bracket-col-final {
+  justify-content: center;
+}
+
+.bracket-match {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #eee5d8;
+  background: #fdfbf6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bracket-match-final {
+  border: 1px solid #1a1814;
+  box-shadow: 0 2px 8px rgba(26, 24, 20, 0.08);
+}
+
+.bracket-slot {
+  padding: 6px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  font-weight: 300;
+  color: #1a1814;
+  border-bottom: 1px solid #f0ebe0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.bracket-slot:last-child {
+  border-bottom: none;
+}
+
+.bracket-slot-advanced {
+  background: #1a1814;
+  color: #faf8f5;
+  font-weight: 400;
+}
+
+.bracket-slot-empty {
+  color: #ddd;
+  font-style: italic;
+}
+
+.bracket-slot-seed {
+  font-size: 9px;
+  color: #b8aa8a;
+  margin-right: 4px;
+  font-weight: 300;
+}
+
+.bracket-slot-advanced .bracket-slot-seed {
+  color: #c9b890;
+}
+
+.bracket-match-final .bracket-slot {
+  font-size: 16px;
+  padding: 10px;
+}
+
+/* ── stadium (desktop): 13 cols, fluid to page width ─── */
+.bracket-stadium {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.bracket-labels-stadium,
+.bracket-grid-stadium {
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+}
+
+/* ── linear (phone): 7 cols, one column per viewport ── */
+.bracket-linear {
+  /* width set by grid columns below */
+}
+
+.bracket-labels-linear,
+.bracket-grid-linear {
+  /* desktop fallback never used (mobile-only wrapper), but harmless */
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+}
+
+/* ── responsive toggle ───────────────────────────── */
+.bracket-desktop-only {
+  display: block;
+}
+.bracket-mobile-only {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .bracket-desktop-only {
+    display: none;
+  }
+  .bracket-mobile-only {
+    display: block;
+  }
+  .bracket-scroll {
+    padding: 0 0 24px;
+    scroll-snap-type: x mandatory;
+  }
+  /* Each round-column is exactly one viewport wide; scroll-snap locks to one at a time */
+  .bracket-labels-linear,
+  .bracket-grid-linear {
+    grid-template-columns: repeat(7, 100vw);
+    gap: 0;
+    padding: 0;
+  }
+  /* Each column is its own content height — later rounds collapse tightly */
+  .bracket-grid-linear {
+    min-height: 0;
+    align-items: start;
+  }
+  .bracket-mobile-only .bracket-column,
+  .bracket-mobile-only .bracket-col-final {
+    justify-content: flex-start;
+    gap: 6px;
+    padding-top: 4px;
+  }
+  .bracket-mobile-only .bracket-column,
+  .bracket-mobile-only .bracket-col-label {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

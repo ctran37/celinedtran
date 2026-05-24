@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
-import RoundPicker from "../components/RoundPicker.jsx";
-import { roundName, TOTAL_ROUNDS } from "../lib/rounds.js";
+import BracketStadium from "../components/BracketStadium.jsx";
+import { TOTAL_ROUNDS } from "../lib/rounds.js";
 
 export default function ViewBracket() {
   const { id } = useParams();
@@ -166,12 +166,14 @@ export default function ViewBracket() {
           {bracket.participant_name}'s bracket
         </h2>
         <p className="mono" style={{ fontSize: 12, color: "#aaa" }}>
-          submitted {new Date(bracket.created_at).toLocaleString("en-US", {
+          submitted {parseSupabaseTimestamp(bracket.created_at).toLocaleString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric",
             hour: "numeric",
             minute: "2-digit",
+            timeZone: "America/New_York",
+            timeZoneName: "short",
           })}
         </p>
       </div>
@@ -209,46 +211,16 @@ export default function ViewBracket() {
         </p>
       </div>
 
-      {/* Show the deepest rounds in full (finals + semis), then collapse earlier rounds to winner lists */}
-      {[7, 6, 5, 4].map((r) => {
-        const matchups = matchupsForRound(r);
-        return (
-          <div key={r} style={{ marginBottom: 32 }}>
-            <RoundPicker
-              round={r}
-              matchups={matchups}
-              picks={picks}
-              onPick={() => {}}
-              readOnly
-            />
-          </div>
-        );
-      })}
-
-      <div style={{ marginTop: 8 }}>
-        <h3 className="label-eyebrow" style={{ marginBottom: 16 }}>
-          Earlier rounds — advanced players
-        </h3>
-        {[1, 2, 3].map((r) => {
-          const matchups = matchupsForRound(r);
-          const winners = matchups
-            .map((m) => playersById[picks[m.id]])
-            .filter(Boolean);
-          return (
-            <div key={r} style={{ marginBottom: 18 }}>
-              <p className="label-eyebrow" style={{ marginBottom: 6 }}>
-                {roundName(r)} ({winners.length})
-              </p>
-              <p
-                className="mono"
-                style={{ fontSize: 12, color: "#666", lineHeight: 1.7 }}
-              >
-                {winners.map((w) => w.name).join(" · ") || "—"}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      <BracketStadium matchupsForRound={matchupsForRound} picks={picks} />
     </div>
   );
+}
+
+// Supabase TIMESTAMP (no tz) columns return ISO strings without a "Z" suffix,
+// which JS parses as local time. Force UTC interpretation so the EDT conversion
+// downstream is correct.
+function parseSupabaseTimestamp(s) {
+  if (!s) return new Date(NaN);
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(s);
+  return new Date(hasTz ? s : s + "Z");
 }
