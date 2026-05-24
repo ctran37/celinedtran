@@ -101,6 +101,7 @@ export default function CreateBracket() {
         matchNumber: m.match_number,
         player1: m.player1,
         player2: m.player2,
+        lockedWinnerId: m.winner_id ?? null,
       }));
     }
     return roundMatches.map((m) => {
@@ -113,6 +114,7 @@ export default function CreateBracket() {
         matchNumber: m.match_number,
         player1: p1id ? playersById[p1id] : null,
         player2: p2id ? playersById[p2id] : null,
+        lockedWinnerId: m.winner_id ?? null,
       };
     });
   };
@@ -136,7 +138,7 @@ export default function CreateBracket() {
       const { data, error: mErr } = await supabase
         .from("matches")
         .select(
-          `id, round, match_number, player1_id, player2_id,
+          `id, round, match_number, player1_id, player2_id, winner_id,
            player1:player1_id (id, name, nationality, seed),
            player2:player2_id (id, name, nationality, seed)`
         )
@@ -144,9 +146,16 @@ export default function CreateBracket() {
         .order("round", { ascending: true })
         .order("match_number", { ascending: true });
       if (mErr) throw mErr;
-      setMatches(data ?? []);
+      const loaded = data ?? [];
+      // Auto-fill picks for any matches that already have an actual winner —
+      // the user can't pick against reality.
+      const seededPicks = {};
+      for (const m of loaded) {
+        if (m.winner_id) seededPicks[m.id] = m.winner_id;
+      }
+      setMatches(loaded);
       setCurrentRound(1);
-      setPicks({});
+      setPicks(seededPicks);
       setStep("picking");
     } catch (e) {
       setError(e.message ?? String(e));
@@ -158,6 +167,7 @@ export default function CreateBracket() {
   const handlePick = (matchId, playerId) => {
     const match = matchesById[matchId];
     if (!match) return;
+    if (match.winner_id) return; // match is final, can't override
     const previous = picks[matchId];
     setPicks((prev) => {
       const next = { ...prev, [matchId]: playerId };

@@ -113,6 +113,74 @@ a {
   gap: 8px;
   padding: 10px 0;
   border-bottom: 1px solid #eee5d8;
+  position: relative;
+}
+
+.match-card-final {
+  padding-top: 22px;
+}
+
+.match-final-flag {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #999;
+}
+
+.pick-button.locked {
+  cursor: default;
+  opacity: 1;
+}
+.pick-button.locked:not(.picked) {
+  color: #b8b0a2;
+  background: transparent;
+  border-style: dashed;
+}
+
+/* Admin "selected but not yet confirmed" state — outline only, not solid */
+.pick-button.pending {
+  background: #fdfbf6;
+  color: #1a1814;
+  border: 1px dashed #1a1814;
+  font-weight: 400;
+}
+
+/* Sticky batch-confirm bar at bottom of admin page */
+.admin-confirm-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: #1a1814;
+  color: #faf8f5;
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 -2px 16px rgba(26, 24, 20, 0.18);
+}
+.admin-confirm-bar .btn.secondary {
+  background: transparent;
+  color: #faf8f5;
+  border-color: #faf8f5;
+}
+.admin-confirm-bar .btn.secondary:hover {
+  background: #faf8f5;
+  color: #1a1814;
+}
+.admin-confirm-bar .btn:not(.secondary) {
+  background: #faf8f5;
+  color: #1a1814;
+  border-color: #faf8f5;
+}
+.admin-confirm-bar .btn:not(.secondary):hover {
+  background: #ede9e0;
 }
 
 .pick-button {
