@@ -1,10 +1,10 @@
 name: Sync Roland Garros Results
 
 on:
-  schedule:
+  # schedule:
     # Hourly between 5am and 10pm ET (EDT = UTC-4 during the tournament window).
     # Cron in UTC: 9, 10, ..., 23, 0, 1, 2 = 5am EDT through 10pm EDT.
-    - cron: "0 10-20,0-2 * * *"
+    # - cron: "0 10-20,0-2 * * *"
   workflow_dispatch: # manual trigger from the Actions tab
 
 concurrency:
