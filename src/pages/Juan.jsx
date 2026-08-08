@@ -8,7 +8,11 @@ import {
 import "./juan.css";
 
 const TABLE = "timeline_events";
-const EMPTY_FORM = { open: false, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, error: "" };
+// `id: null` means "adding"; an id means "editing that row".
+const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, error: "" };
+
+const focusText = () =>
+  setTimeout(() => { const el = document.getElementById("tl-ev-text"); if (el) el.focus(); }, 50);
 
 export default function Juan() {
   // ---- static config, parsed once ----
@@ -163,8 +167,19 @@ export default function Juan() {
   const openModal = useCallback((prefillDate) => {
     const def = prefillDate || dateStr(now < arcStart ? arcStart : now > arcEnd ? arcEnd : now);
     setForm({ ...EMPTY_FORM, open: true, start: def });
-    setTimeout(() => { const el = document.getElementById("tl-ev-text"); if (el) el.focus(); }, 50);
+    focusText();
   }, [now, arcStart, arcEnd]);
+  // same dialog, prefilled from the row we're editing. `emoji` keeps the raw
+  // stored value (blank = "inherit the category's emoji").
+  const openEdit = useCallback((ev) => {
+    setForm({
+      open: true, id: ev.id, error: "",
+      start: dateStr(ev.startD),
+      end: sameDay(ev.startD, ev.endD) ? "" : dateStr(ev.endD),
+      text: ev.text, emoji: ev.emoji || "", cat: ev.cat, person: ev.person,
+    });
+    focusText();
+  }, []);
   const closeModal = useCallback(() => setForm((f) => ({ ...f, open: false })), []);
 
   useEffect(() => {
@@ -184,11 +199,19 @@ export default function Juan() {
     if (sD < arcStart || eD > arcEnd)
       return setForm((f) => ({ ...f, error: `Those dates fall outside the timeline (${fmtShort(arcStart)} – ${fmtShort(arcEnd)}).` }));
     setSaving(true);
-    const { error } = await supabase.from(TABLE).insert({
+    const row = {
       start_date: startVal, end_date: endVal, category: form.cat, person: form.person, emoji: form.emoji.trim(), text,
-    });
+    };
+    // on edit we ask for the row back: Postgres/RLS answers a blocked UPDATE
+    // with "200, zero rows" rather than an error, which would otherwise look
+    // like a successful save that quietly changed nothing.
+    const { data, error } = form.id
+      ? await supabase.from(TABLE).update(row).eq("id", form.id).select("id")
+      : await supabase.from(TABLE).insert(row);
     setSaving(false);
     if (error) return setForm((f) => ({ ...f, error: error.message }));
+    if (form.id && (!data || data.length === 0))
+      return setForm((f) => ({ ...f, error: "The database wouldn't accept the edit — the table is missing an UPDATE policy, so nothing was changed." }));
     closeModal();
     fetchEvents();
   }, [form, arcStart, arcEnd, closeModal, fetchEvents]);
@@ -322,7 +345,7 @@ export default function Juan() {
                                 title={`${who.label} · ${c.label}` + (sameDay(item.startD, item.endD) ? "" : `  ·  ${fmtShort(item.startD)} – ${fmtShort(item.endD)}`)}>
                                 <span className="m-day">{rangeLabel(item, y, m)}</span>
                                 <span className="m-emoji">{evEmoji(item)}</span>
-                                <span className="m-text">{item.text}</span>
+                                <button className="m-text" title="Edit this event" onClick={() => openEdit(item)}>{item.text}</button>
                                 <button className="ev-del" title="Delete" onClick={() => deleteEvent(item.id)}>✕</button>
                               </li>
                             );
@@ -384,9 +407,13 @@ export default function Juan() {
                           const type = isStart && isEnd ? "single" : isStart ? "start" : isEnd ? "end" : "mid";
                           const showLabel = type === "single" || type === "start";
                           return (
-                            <div key={e.id} className={`cal-event seg-${type}`}
+                            <div key={e.id} className={`cal-event seg-${type}`} role="button" tabIndex={0}
                               style={{ background: hexToRgba(who.color, 0.22), borderLeftColor: who.color }}
-                              title={`${who.label} · ${c.label} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}`}>
+                              title={`${who.label} · ${c.label} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}\nClick to edit`}
+                              onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
+                              onKeyDown={(evt) => {
+                                if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); evt.stopPropagation(); openEdit(e); }
+                              }}>
                               {showLabel ? (
                                 <>
                                   {/* the text hides on narrow screens; the emoji stays as the marker */}
@@ -451,11 +478,11 @@ export default function Juan() {
         <footer className="page-foot">{PAGE.footer}</footer>
       </div>
 
-      {/* ADD-EVENT MODAL */}
+      {/* ADD / EDIT EVENT MODAL — same form both ways; form.id decides which */}
       {form.open && (
         <div className="tl-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
           <form className="tl-modal" onSubmit={(e) => { e.preventDefault(); saveEvent(); }}>
-            <h3>Add an event</h3>
+            <h3>{form.id ? "Edit event" : "Add an event"}</h3>
 
             <label>Whose event?</label>
             <div className="cat-pick">
@@ -508,8 +535,15 @@ export default function Juan() {
 
             <div className="modal-err">{form.error}</div>
             <div className="modal-actions">
+              {form.id && (
+                /* the only delete that works on touch — the calendar's ✕ is hover-only */
+                <button type="button" className="tl-btn danger" disabled={saving}
+                  onClick={() => { const id = form.id; closeModal(); deleteEvent(id); }}>Delete</button>
+              )}
               <button type="button" className="tl-btn" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="tl-btn primary" disabled={saving}>{saving ? "Saving…" : "Save event"}</button>
+              <button type="submit" className="tl-btn primary" disabled={saving}>
+                {saving ? "Saving…" : form.id ? "Save changes" : "Save event"}
+              </button>
             </div>
           </form>
         </div>

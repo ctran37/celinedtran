@@ -25,10 +25,15 @@ alter table public.timeline_events enable row level security;
 
 drop policy if exists "timeline public read"   on public.timeline_events;
 drop policy if exists "timeline public insert" on public.timeline_events;
+drop policy if exists "timeline public update" on public.timeline_events;
 drop policy if exists "timeline public delete" on public.timeline_events;
 
 create policy "timeline public read"   on public.timeline_events for select using (true);
 create policy "timeline public insert" on public.timeline_events for insert with check (true);
+-- update needs BOTH: `using` picks which rows may be edited, `with check`
+-- validates the new values. Without this policy an edit returns "200, zero
+-- rows" — it looks like it saved but changes nothing.
+create policy "timeline public update" on public.timeline_events for update using (true) with check (true);
 create policy "timeline public delete" on public.timeline_events for delete using (true);
 
 -- Let realtime broadcast changes so both devices update live.

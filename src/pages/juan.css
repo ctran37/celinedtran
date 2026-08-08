@@ -151,7 +151,12 @@
 .tl .milestones li:last-child { border-bottom: none; }
 .tl .m-day { flex: 0 0 auto; font-weight: bold; color: var(--tl-accent); min-width: 34px; font-size: 0.82rem; }
 .tl .m-emoji { flex: 0 0 auto; }
-.tl .m-text { flex: 1; }
+/* a button so it's tappable/keyboard-reachable, styled to read as plain text */
+.tl button.m-text {
+  flex: 1; text-align: left; font-family: inherit; font-size: inherit; line-height: inherit;
+  color: inherit; background: transparent; border: none; padding: 0; cursor: pointer;
+}
+.tl button.m-text:hover { color: var(--tl-accent); text-decoration: underline; }
 .tl .milestones .empty { color: var(--tl-ink-soft); font-style: italic; border-bottom: none; border-left: none; padding-left: 0; }
 .tl .ev-del {
   flex: 0 0 auto; border: none; background: transparent; color: var(--tl-ink-soft); cursor: pointer;
@@ -219,6 +224,9 @@
   border-left: 3px solid var(--tl-accent);
   display: flex; align-items: baseline; gap: 3px;
 }
+.tl .cal-event { cursor: pointer; }
+.tl .cal-event:hover { filter: brightness(0.96); }
+.tl .cal-event:focus-visible { outline: 2px solid var(--tl-ink); outline-offset: 1px; }
 .tl .cal-ev-emoji { flex: 0 0 auto; }
 .tl .cal-ev-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .tl .cal-ev-del { position: absolute; top: 0; right: 0; border: none; background: transparent; color: #b23b3b; cursor: pointer; font-size: 0.7rem; padding: 0 3px; display: none; }
@@ -253,7 +261,9 @@
 .tl-modal .emoji-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .tl-modal .emoji-chip { border: 1px solid #e7dccd; background: #fbf6ef; border-radius: 8px; cursor: pointer; font-size: 1rem; padding: 4px 7px; }
 .tl-modal .emoji-chip:hover { border-color: #c56b4a; }
-.tl-modal .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.tl-modal .modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; }
+.tl-modal .tl-btn.danger { margin-right: auto; color: #b23b3b; padding: 8px 14px; }
+.tl-modal .tl-btn.danger:hover { background: #f6e3e3; }
 .tl-modal .tl-btn {
   font-family: "Georgia", serif; font-size: 0.9rem; cursor: pointer; border: none;
   background: transparent; color: #8a7d73; padding: 8px 18px; border-radius: 999px;
@@ -308,7 +318,7 @@
   .tl .cal-cell { min-height: 56px; padding: 2px 2px 3px; gap: 2px; }
   .tl .cal-daynum { font-size: 0.62rem; }
   /* a 7-across cell is too narrow for words — show the emoji as the marker */
-  .tl .cal-event { font-size: 0.62rem; padding: 1px 2px; border-left-width: 2px; justify-content: center; }
+  .tl .cal-event { font-size: 0.62rem; padding: 1px 2px; border-left-width: 2px; justify-content: center; min-height: 15px; }
   .tl .cal-ev-text { display: none; }
   .tl .cal-ev-emoji { font-size: 0.8rem; line-height: 1.1; }
   .tl .cal-event.seg-mid, .tl .cal-event.seg-end { min-height: 11px; }
