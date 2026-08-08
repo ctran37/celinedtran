@@ -72,10 +72,17 @@ export default function Juan() {
   const [saving, setSaving] = useState(false);
 
   const fetchEvents = useCallback(async () => {
-    const { data, error } = await supabase
+    const rows = () => supabase
       .from(TABLE)
-      .select("id, start_date, end_date, category, person, emoji, text")
-      .order("start_date", { ascending: true });
+      .select("id, start_date, end_date, category, person, emoji, text");
+    // soft-deleted rows stay in the table, just hidden here
+    let { data, error } = await rows().is("deleted_at", null).order("start_date", { ascending: true });
+    // 42703 = no such column, i.e. timeline_events_audit.sql hasn't been run
+    // yet. Fall back to the unfiltered query so the page still renders.
+    if (error && error.code === "42703") {
+      console.warn("timeline: no deleted_at column — run script/timeline_events_audit.sql");
+      ({ data, error } = await rows().order("start_date", { ascending: true }));
+    }
     if (error) {
       setLoadErr(error.message);
       setLoading(false);
@@ -112,11 +119,23 @@ export default function Juan() {
     return () => { supabase.removeChannel(ch); };
   }, [fetchEvents]);
 
+  // Soft delete: stamps deleted_at instead of removing the row, so anything
+  // deleted (by us or by a stranger with the public key) can be brought back
+  // from the SQL editor. See script/timeline_events_audit.sql.
   const deleteEvent = useCallback(async (id) => {
     // optimistic remove; realtime/refetch reconciles
     setEvents((prev) => prev.filter((e) => e.id !== id));
-    const { error } = await supabase.from(TABLE).delete().eq("id", id);
-    if (error) { alert("Couldn't delete that event: " + error.message); fetchEvents(); }
+    const { data, error } = await supabase
+      .from(TABLE)
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("id");
+    if (error) { alert("Couldn't delete that event: " + error.message); fetchEvents(); return; }
+    // a blocked UPDATE comes back as "200, zero rows" rather than an error
+    if (!data || data.length === 0) {
+      alert("Couldn't delete that event — the database rejected the change. Has script/timeline_events_audit.sql been run?");
+      fetchEvents();
+    }
   }, [fetchEvents]);
 
   // ---- category filter ----

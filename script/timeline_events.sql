@@ -1,6 +1,8 @@
 -- ============================================================
 --  Timeline events for the /juan page.
---  Run this once in the Supabase dashboard → SQL Editor.
+--  Run this once in the Supabase dashboard → SQL Editor,
+--  then run script/timeline_events_audit.sql (soft delete +
+--  audit trail + restore helper). Both are required.
 -- ============================================================
 
 create table if not exists public.timeline_events (
@@ -34,7 +36,12 @@ create policy "timeline public insert" on public.timeline_events for insert with
 -- validates the new values. Without this policy an edit returns "200, zero
 -- rows" — it looks like it saved but changes nothing.
 create policy "timeline public update" on public.timeline_events for update using (true) with check (true);
-create policy "timeline public delete" on public.timeline_events for delete using (true);
+
+-- NOTE: there is deliberately no delete policy. Deleting is a soft delete
+-- (an UPDATE that sets deleted_at), so a stranger with the publishable key
+-- can't destroy anything. Run script/timeline_events_audit.sql next — it
+-- adds the deleted_at column, the audit trail, and the restore helper.
+-- Until you do, the page's delete button won't work.
 
 -- Let realtime broadcast changes so both devices update live.
 alter publication supabase_realtime add table public.timeline_events;
