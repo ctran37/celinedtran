@@ -48,12 +48,12 @@ export const PHASES = [
 ];
 
 // Event categories. `id` is stored on each event row in Supabase.
+// Any id that isn't listed here (older rows: visit / call / birthday /
+// milestone) falls back to "other", so nothing already saved disappears.
 export const CATEGORIES = [
-  { id: "visit", label: "Visit", emoji: "✈️", color: "#7fa15a" },
-  { id: "call", label: "Call", emoji: "📞", color: "#5a8fa1" },
-  { id: "birthday", label: "Birthday", emoji: "🎂", color: "#c98aa8" },
   { id: "holiday", label: "Holiday", emoji: "🎄", color: "#c56b4a" },
-  { id: "milestone", label: "Milestone", emoji: "💛", color: "#d8a24a" },
+  { id: "vacation", label: "Vacation", emoji: "✈️", color: "#7fa15a" },
+  { id: "schoolwork", label: "School/Work", emoji: "📚", color: "#5a8fa1" },
   { id: "other", label: "Other", emoji: "📅", color: "#8a7d73" },
 ];
 
@@ -72,7 +72,7 @@ export const NOTES = {
 };
 
 // Suggested quick-pick emojis in the add-event dialog.
-export const EMOJI_PALETTE = ["💛", "📞", "✈️", "🤗", "🎂", "🎄", "🌸", "🍷", "🎁", "📅", "❤️", "🌞"];
+export const EMOJI_PALETTE = ["💛", "✈️", "🎄", "📚", "💼", "🏖️", "🤗", "🎂", "🌸", "🎁", "📅", "🌞"];
 
 // ---------- shared date helpers ----------
 export function parseDate(s) {

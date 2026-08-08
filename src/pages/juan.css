@@ -170,23 +170,32 @@
 .tl .scroll-hint { font-size: 0.8rem; color: var(--tl-ink-soft); font-style: italic; margin: 0 0 8px; }
 
 /* calendar */
-.tl .cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.tl .cal-nav .tl-btn {
-  background: var(--tl-surface); box-shadow: var(--tl-shadow); border-radius: 999px;
-  width: 40px; height: 40px; padding: 0; font-size: 1.1rem; color: var(--tl-ink);
-}
-.tl .cal-nav .tl-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
-.tl .cal-nav-title { font-size: 1.25rem; display: inline-flex; align-items: baseline; gap: 12px; }
+.tl .cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.tl .cal-nav .scroll-hint { margin: 0; }
 .tl .cal-today {
   font-family: var(--tl-font-body); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
   border: 1px solid var(--tl-line); background: transparent; color: var(--tl-accent);
   border-radius: 999px; padding: 3px 10px; cursor: pointer;
 }
 .tl .cal-today:hover { border-color: var(--tl-accent); }
-.tl .calendar { display: flex; flex-direction: column; gap: 26px; }
-.tl .cal-month { background: var(--tl-surface); border-radius: var(--tl-radius); box-shadow: var(--tl-shadow); overflow: hidden; }
+/* every month lives in one scrollable column — no next/prev needed */
+.tl .calendar {
+  display: flex; flex-direction: column; gap: 26px;
+  max-height: 78vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 4px 8px; margin: 0 -4px;
+}
+.tl .cal-month { background: var(--tl-surface); border-radius: var(--tl-radius); box-shadow: var(--tl-shadow); overflow: hidden; flex: none; }
 .tl .cal-month.is-current { outline: 3px solid var(--tl-accent); outline-offset: 2px; }
-.tl .cal-month-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 18px; }
+.tl .cal-month-head {
+  display: flex; align-items: baseline; gap: 10px; padding: 14px 18px;
+  background: var(--tl-surface);   /* opaque base; the phase tint overrides inline */
+}
+/* keep the month name in view while scrolling its weeks. needs `clip` rather
+   than `hidden` on the card, or the card becomes its own scrollport. */
+@supports (overflow: clip) {
+  .tl .cal-month { overflow: clip; }
+  .tl .cal-month-head { position: sticky; top: 0; z-index: 2; }
+}
 .tl .cal-month-head h3 { font-weight: 400; font-size: 1.25rem; margin: 0; }
 .tl .cal-phase { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--tl-ink-soft); }
 .tl .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
@@ -206,9 +215,12 @@
 .tl .cal-cell.today .cal-daynum { color: var(--tl-accent); font-weight: bold; }
 .tl .cal-event {
   font-size: 0.68rem; line-height: 1.25; padding: 2px 4px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; position: relative; color: var(--tl-ink);
+  white-space: nowrap; position: relative; color: var(--tl-ink);
   border-left: 3px solid var(--tl-accent);
+  display: flex; align-items: baseline; gap: 3px;
 }
+.tl .cal-ev-emoji { flex: 0 0 auto; }
+.tl .cal-ev-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .tl .cal-ev-del { position: absolute; top: 0; right: 0; border: none; background: transparent; color: #b23b3b; cursor: pointer; font-size: 0.7rem; padding: 0 3px; display: none; }
 .tl .cal-event:hover .cal-ev-del { display: inline; }
 .tl .cal-event.seg-single { border-radius: 6px; }
@@ -248,6 +260,99 @@
 }
 .tl-modal .tl-btn.primary { background: #c56b4a; color: #fff; padding: 10px 20px; }
 .tl-modal .modal-err { color: #b23b3b; font-size: 0.8rem; margin-top: 10px; min-height: 1em; }
+
+/* =============================================================
+   RESPONSIVE — tablets first, then phones. The calendar keeps its
+   7-column month grid at every width (a month should still read as
+   a month); what gives way is padding, type size, and event text.
+============================================================= */
+@media (max-width: 860px) {
+  .tl .wrap { padding: 34px 16px 60px; }
+  .tl section { margin-bottom: 40px; }
+  .tl .page-head { margin-bottom: 30px; }
+  .tl .page-head h1 { font-size: 2rem; }
+  .tl .focus-card { padding: 24px 22px 26px; }
+  .tl .focus-head h2 { font-size: 1.45rem; }
+  .tl .calendar { max-height: 72vh; }
+  .tl .cal-cell { min-height: 70px; }
+  .tl .cal-event { font-size: 0.64rem; }
+}
+
+@media (max-width: 640px) {
+  .tl .wrap { padding: 26px 12px 52px; }
+  .tl section { margin-bottom: 32px; }
+  .tl .page-head h1 { font-size: 1.7rem; }
+  .tl .page-head .subtitle { font-size: 0.95rem; }
+  .tl .today-line { font-size: 0.88rem; }
+
+  /* toolbar: full-width rows instead of a cramped single line */
+  .tl .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tl .toolbar > div:last-child { justify-content: space-between; }
+  .tl .view-toggle .tl-btn { flex: 1; padding: 9px 10px; }
+
+  /* calendar */
+  .tl .cal-nav { gap: 8px; flex-wrap: wrap; }
+  .tl .cal-nav .scroll-hint { font-size: 0.72rem; }
+  .tl .calendar {
+    max-height: 68vh; gap: 18px;
+    padding: 3px 2px 6px; margin: 0 -2px;
+    -webkit-overflow-scrolling: touch;
+    /* let touch scrolling continue into the page once the months run out */
+    overscroll-behavior: auto;
+  }
+  .tl .cal-month.is-current { outline-width: 2px; outline-offset: 1px; }
+  .tl .cal-month-head { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
+  .tl .cal-month-head h3 { font-size: 1.05rem; }
+  .tl .cal-phase { font-size: 0.62rem; letter-spacing: 0.8px; }
+  .tl .cal-weekday { font-size: 0.56rem; letter-spacing: 0.3px; padding: 5px 0; }
+  .tl .cal-cell { min-height: 56px; padding: 2px 2px 3px; gap: 2px; }
+  .tl .cal-daynum { font-size: 0.62rem; }
+  /* a 7-across cell is too narrow for words — show the emoji as the marker */
+  .tl .cal-event { font-size: 0.62rem; padding: 1px 2px; border-left-width: 2px; justify-content: center; }
+  .tl .cal-ev-text { display: none; }
+  .tl .cal-ev-emoji { font-size: 0.8rem; line-height: 1.1; }
+  .tl .cal-event.seg-mid, .tl .cal-event.seg-end { min-height: 11px; }
+
+  /* month cards: nearly full-width so they don't feel clipped */
+  .tl .month-card { flex: 0 0 82vw; }
+  .tl .months-scroll { gap: 12px; padding: 6px 2px 18px; }
+
+  /* countdown */
+  .tl .focus-card { padding: 20px 18px 22px; border-left-width: 6px; }
+  .tl .focus-head h2 { font-size: 1.3rem; }
+  .tl .focus-message { font-size: 0.98rem; margin-bottom: 18px; }
+  .tl .progress-stats { gap: 8px; }
+  .tl .stat { flex: 1 1 84px; padding: 10px 6px; }
+  .tl .stat .num { font-size: 1.25rem; }
+  .tl .stat .cap { font-size: 0.62rem; letter-spacing: 0.8px; }
+
+  /* modal */
+  .tl-modal { padding: 20px 18px 18px; max-height: 88vh; }
+  .tl-modal .date-row { flex-wrap: wrap; gap: 8px; }
+  .tl-modal .date-row > div { flex: 1 1 140px; }
+  .tl-modal .modal-actions { gap: 8px; }
+}
+
+@media (max-width: 400px) {
+  .tl .wrap { padding: 22px 8px 44px; }
+  .tl .cal-cell { min-height: 50px; }
+  .tl .cal-weekday { font-size: 0.5rem; }
+  .tl .cal-event { font-size: 0.58rem; }
+  .tl .cal-daynum { font-size: 0.58rem; }
+}
+
+/* short viewports (phone landscape) — don't let the scroller eat the screen */
+@media (max-height: 620px) {
+  .tl .calendar { max-height: 60vh; }
+}
+
+/* modern units where supported, so mobile browser chrome doesn't clip it */
+@supports (height: 1dvh) {
+  .tl .calendar { max-height: 78dvh; }
+  @media (max-width: 860px) { .tl .calendar { max-height: 72dvh; } }
+  @media (max-width: 640px) { .tl .calendar { max-height: 68dvh; } }
+  @media (max-height: 620px) { .tl .calendar { max-height: 60dvh; } }
+}
 
 /* PRINT */
 @media print {

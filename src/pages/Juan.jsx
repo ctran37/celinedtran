@@ -128,12 +128,14 @@ export default function Juan() {
   const cardsRef = useRef(null);
   const calRef = useRef(null);
 
-  // calendar shows one month at a time; start on the current month
-  const curMonthIndex = useMemo(() => {
-    const i = months.findIndex(({ y, m }) => `${y}-${pad(m + 1)}` === curMonthKey);
-    return i >= 0 ? i : 0;
-  }, [months, curMonthKey]);
-  const [calIndex, setCalIndex] = useState(curMonthIndex);
+  // the calendar renders every month in one scrollable column; this just
+  // tells us which one to scroll to (and lets "Jump to today" work).
+  const scrollToCurrentMonth = useCallback((behavior = "auto") => {
+    const box = calRef.current;
+    const target = box && box.querySelector(".cal-month.is-current");
+    if (!box || !target) return;
+    box.scrollTo({ top: target.offsetTop - box.offsetTop, behavior });
+  }, []);
 
   // ---- collapsible sections ----
   const [collapsed, setCollapsed] = useState({});
@@ -149,6 +151,12 @@ export default function Juan() {
     const target = cardsRef.current && cardsRef.current.querySelector(".is-current");
     if (target) target.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
   }, [view, loading, events, collapsed.plan]);
+
+  // open the calendar already parked on this month
+  useEffect(() => {
+    if (loading || collapsed.plan || view !== "calendar") return;
+    scrollToCurrentMonth("instant");
+  }, [view, loading, collapsed.plan, scrollToCurrentMonth]);
 
   // ---- modal ----
   const [form, setForm] = useState(EMPTY_FORM);
@@ -346,19 +354,11 @@ export default function Juan() {
           {view === "calendar" && (
             <div className="view-calendar">
               <div className="cal-nav">
-                <button className="tl-btn" onClick={() => setCalIndex((i) => Math.max(0, i - 1))}
-                  disabled={calIndex === 0} aria-label="Previous month">←</button>
-                <span className="cal-nav-title">
-                  {MONTH_NAMES[months[calIndex].m]} {months[calIndex].y}
-                  {calIndex !== curMonthIndex && (
-                    <button className="cal-today" onClick={() => setCalIndex(curMonthIndex)}>Today</button>
-                  )}
-                </span>
-                <button className="tl-btn" onClick={() => setCalIndex((i) => Math.min(months.length - 1, i + 1))}
-                  disabled={calIndex === months.length - 1} aria-label="Next month">→</button>
+                <p className="scroll-hint">↕ scroll to move through the months</p>
+                <button className="cal-today" onClick={() => scrollToCurrentMonth("smooth")}>Jump to today</button>
               </div>
               <div className="calendar" ref={calRef}>
-                {[months[calIndex]].map(({ y, m }) => {
+                {months.map(({ y, m }) => {
                   const key = `${y}-${pad(m + 1)}`;
                   const phase = phaseForMonth(y, m);
                   const monthEvents = visibleEvents.filter((e) => overlapsMonth(e, y, m));
@@ -388,7 +388,10 @@ export default function Juan() {
                               style={{ background: hexToRgba(who.color, 0.22), borderLeftColor: who.color }}
                               title={`${who.label} · ${c.label} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}`}>
                               {showLabel ? (
-                                <>{evEmoji(e)} {e.text}
+                                <>
+                                  {/* the text hides on narrow screens; the emoji stays as the marker */}
+                                  <span className="cal-ev-emoji">{evEmoji(e)}</span>
+                                  <span className="cal-ev-text">{e.text}</span>
                                   <button className="cal-ev-del" title="Delete"
                                     onClick={(evt) => { evt.stopPropagation(); deleteEvent(e.id); }}>✕</button>
                                 </>
@@ -490,7 +493,7 @@ export default function Juan() {
             </div>
 
             <label htmlFor="tl-ev-text">What's happening?</label>
-            <input id="tl-ev-text" type="text" maxLength={80} placeholder="e.g. Visit, video call, birthday…"
+            <input id="tl-ev-text" type="text" maxLength={80} placeholder="e.g. Spring break, finals week, Christmas…"
               value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} />
 
             <label htmlFor="tl-ev-emoji">Emoji <span className="sub">(optional — defaults to the category's)</span></label>
