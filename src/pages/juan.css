@@ -264,7 +264,13 @@
 /* modal */
 .tl-modal-overlay { position: fixed; inset: 0; background: rgba(60,45,35,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; font-family: "Georgia", serif; }
 .tl-modal { background: #fffdfa; color: #4a3f39; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 420px; padding: 26px 26px 22px; max-height: 92vh; overflow-y: auto; }
-.tl-modal h3 { font-weight: 400; font-size: 1.4rem; margin: 0 0 8px; }
+.tl-modal .modal-head { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e7dccd; }
+.tl-modal .modal-eyebrow { display: block; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 1.6px; color: #8a7d73; }
+.tl-modal h3 { font-weight: 400; font-size: 1.4rem; margin: 2px 0 0; line-height: 1.25; overflow-wrap: break-word; }
+.tl-modal .modal-head-emoji { margin-right: 7px; }
+.tl-modal .modal-sub { margin: 5px 0 0; font-size: 0.82rem; color: #8a7d73; }
+/* the first label after the header doesn't need its usual top gap */
+.tl-modal .modal-head + label { margin-top: 0; }
 .tl-modal label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #8a7d73; margin: 14px 0 5px; }
 .tl-modal label .sub { text-transform: none; letter-spacing: 0; color: #8a7d73; }
 .tl-modal input {

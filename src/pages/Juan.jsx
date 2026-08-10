@@ -11,7 +11,7 @@ const TABLE = "timeline_events";
 const COLS = "id, start_date, end_date, category, person, emoji, text, pending";
 const LEGACY_COLS = "id, start_date, end_date, category, person, emoji, text";
 // `id: null` means "adding"; an id means "editing that row".
-const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, pending: false, error: "" };
+const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, pending: false, titleAtOpen: "", error: "" };
 
 const focusText = () =>
   setTimeout(() => { const el = document.getElementById("tl-ev-text"); if (el) el.focus(); }, 50);
@@ -200,6 +200,7 @@ export default function Juan() {
       start: dateStr(ev.startD),
       end: sameDay(ev.startD, ev.endD) ? "" : dateStr(ev.endD),
       text: ev.text, emoji: ev.emoji || "", cat: ev.cat, person: ev.person, pending: ev.pending,
+      titleAtOpen: ev.text,   // header keeps naming the event you clicked, even while you retype it
     });
     focusText();
   }, []);
@@ -297,6 +298,14 @@ export default function Juan() {
     }
     return { mode: "message", color: phases[phases.length - 1].color, title: "Full circle", message: "We made it all the way through. 💛" };
   }, [activePhase, now, arcStart, phases]);
+
+  // live date summary under the modal title, follows the two date inputs
+  const formDateLabel = useMemo(() => {
+    if (!form.start) return "";
+    const s = parseDate(form.start);
+    const e = form.end ? parseDate(form.end) : s;
+    return sameDay(s, e) ? fmtLong(s) : `${fmtLong(s)} → ${fmtLong(e)}`;
+  }, [form.start, form.end]);
 
   if (loading) return <div className="tl"><div className="wrap"><p className="loading">Loading your timeline…</p></div></div>;
 
@@ -514,7 +523,30 @@ export default function Juan() {
       {form.open && (
         <div className="tl-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
           <form className="tl-modal" onSubmit={(e) => { e.preventDefault(); saveEvent(); }}>
-            <h3>{form.id ? "Edit event" : "Add an event"}</h3>
+            {/* what you clicked, up top, so the dialog names the event */}
+            <div className="modal-head">
+              <span className="modal-eyebrow">{form.id ? "Editing" : "New event"}</span>
+              <h3>
+                <span className="modal-head-emoji">{evEmoji({ emoji: form.emoji, cat: form.cat })}</span>
+                {form.id ? (form.titleAtOpen || "Untitled event") : "Add an event"}
+                {form.pending && <span className="m-maybe">pending</span>}
+              </h3>
+              {formDateLabel && <p className="modal-sub">{formDateLabel}</p>}
+            </div>
+
+            <label htmlFor="tl-ev-text">What's happening?</label>
+            <input id="tl-ev-text" type="text" maxLength={80} placeholder="e.g. Spring break, finals week, Christmas…"
+              value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} />
+
+            <label htmlFor="tl-ev-emoji">Emoji <span className="sub">(optional — defaults to the category's)</span></label>
+            <input id="tl-ev-emoji" type="text" maxLength={4} placeholder="🌸"
+              value={form.emoji} onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))} />
+            <div className="emoji-row">
+              {EMOJI_PALETTE.map((em) => (
+                <button type="button" key={em} className="emoji-chip"
+                  onClick={() => setForm((f) => ({ ...f, emoji: em }))}>{em}</button>
+              ))}
+            </div>
 
             <label>Whose event?</label>
             <div className="cat-pick">
@@ -559,20 +591,6 @@ export default function Juan() {
                 <input id="tl-ev-end" type="date" min={dateStr(arcStart)} max={dateStr(arcEnd)}
                   value={form.end} onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))} />
               </div>
-            </div>
-
-            <label htmlFor="tl-ev-text">What's happening?</label>
-            <input id="tl-ev-text" type="text" maxLength={80} placeholder="e.g. Spring break, finals week, Christmas…"
-              value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} />
-
-            <label htmlFor="tl-ev-emoji">Emoji <span className="sub">(optional — defaults to the category's)</span></label>
-            <input id="tl-ev-emoji" type="text" maxLength={4} placeholder="🌸"
-              value={form.emoji} onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))} />
-            <div className="emoji-row">
-              {EMOJI_PALETTE.map((em) => (
-                <button type="button" key={em} className="emoji-chip"
-                  onClick={() => setForm((f) => ({ ...f, emoji: em }))}>{em}</button>
-              ))}
             </div>
 
             <div className="modal-err">{form.error}</div>

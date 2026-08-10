@@ -62,7 +62,7 @@ export const CATEGORIES = [
 // default selection in the add-event dialog.
 export const PEOPLE = [
   { id: "both", label: "Both of us", color: "#a3789c" },
-  { id: "celine", label: "Celine", color: "#c05b8c" },
+  { id: "celine", label: "Celine", color: "#d9a520" },
   { id: "juan", label: "Juan", color: "#3d7a99" },
 ];
 
