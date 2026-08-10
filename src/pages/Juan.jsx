@@ -51,16 +51,19 @@ export default function Juan() {
     return null;
   }, [phases, arcEnd]);
   const phaseForMonth = useCallback((y, m) => phaseForDate(new Date(y, m, 15)) || phaseForDate(new Date(y, m, 1)), [phaseForDate]);
+  // The arc's months, minus the ones already finished — the calendar starts at
+  // the current month. The current month itself always stays, part-spent or not.
   const months = useMemo(() => {
     const out = [];
     let c = new Date(arcStart.getFullYear(), arcStart.getMonth(), 1);
     const last = new Date(arcEnd.getFullYear(), arcEnd.getMonth(), 1);
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     while (c <= last) {
-      out.push({ y: c.getFullYear(), m: c.getMonth() });
+      if (c >= thisMonth) out.push({ y: c.getFullYear(), m: c.getMonth() });
       c = new Date(c.getFullYear(), c.getMonth() + 1, 1);
     }
     return out;
-  }, [arcStart, arcEnd]);
+  }, [arcStart, arcEnd, now]);
 
   // ---- data ----
   const [events, setEvents] = useState([]);
@@ -172,11 +175,9 @@ export default function Juan() {
     if (target) target.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
   }, [view, loading, events, collapsed.plan]);
 
-  // open the calendar already parked on this month
-  useEffect(() => {
-    if (loading || collapsed.plan || view !== "calendar") return;
-    scrollToCurrentMonth("instant");
-  }, [view, loading, collapsed.plan, scrollToCurrentMonth]);
+  // no scroll-to-today on open any more: past months aren't rendered, so the
+  // current month is already the first one. "Jump to today" still works after
+  // you've scrolled ahead.
 
   // ---- modal ----
   const [form, setForm] = useState(EMPTY_FORM);
@@ -391,8 +392,13 @@ export default function Juan() {
             <span className="legend-item"><span className="dash-key" />dashed = pending</span>
           </div>
 
+          {/* past months are filtered out, so this empties once the arc ends */}
+          {months.length === 0 && (
+            <p className="cal-empty">The timeline has run its course — nothing ahead to show. 💛</p>
+          )}
+
           {/* CARDS */}
-          {view === "cards" && (
+          {months.length > 0 && view === "cards" && (
             <div className="view-cards">
               <p className="scroll-hint">← scroll sideways to move through the months →</p>
               <div className="months-scroll" ref={cardsRef}>
@@ -452,7 +458,7 @@ export default function Juan() {
           )}
 
           {/* CALENDAR */}
-          {view === "calendar" && (
+          {months.length > 0 && view === "calendar" && (
             <div className="view-calendar">
               <div className="cal-nav">
                 <button className="cal-today" onClick={() => scrollToCurrentMonth("smooth")}>Jump to today</button>

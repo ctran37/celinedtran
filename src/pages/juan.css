@@ -186,6 +186,10 @@
 .tl .note-space.has-note { font-style: normal; color: var(--tl-ink); }
 .tl .note-photo { width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
 .tl .scroll-hint { font-size: 0.8rem; color: var(--tl-ink-soft); font-style: italic; margin: 0 0 8px; }
+.tl .cal-empty {
+  background: var(--tl-surface); border-radius: var(--tl-radius); box-shadow: var(--tl-shadow);
+  padding: 28px 24px; text-align: center; color: var(--tl-ink-soft); font-style: italic; margin: 0;
+}
 
 /* calendar */
 .tl .cal-nav { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 10px; }
