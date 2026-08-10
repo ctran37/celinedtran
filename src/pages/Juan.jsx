@@ -239,6 +239,56 @@ export default function Juan() {
     fetchEvents();
   }, [form, arcStart, arcEnd, closeModal, fetchEvents]);
 
+  // ---- calendar layout ----
+  // A month is laid out week by week. Within a week an event becomes ONE bar
+  // spanning its days (grid-column: start / span n) instead of a separate pill
+  // per day — that's what gives the title room to be read. Bars that would
+  // overlap get stacked into lanes, the way a real calendar does it.
+  const weeksOf = useCallback((y, m) => {
+    const firstDow = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const slots = [];
+    for (let b = 0; b < firstDow; b++) slots.push(null);          // leading blanks
+    for (let day = 1; day <= daysInMonth; day++) slots.push(new Date(y, m, day));
+    while (slots.length % 7 !== 0) slots.push(null);              // trailing blanks
+    const out = [];
+    for (let i = 0; i < slots.length; i += 7) out.push(slots.slice(i, i + 7));
+    return out;
+  }, []);
+
+  const barsForWeek = useCallback((week, monthEvents) => {
+    const col = week.findIndex(Boolean);
+    const firstD = week[col];
+    const lastD = week[week.length - 1] || week.filter(Boolean).pop();
+    if (!firstD) return { bars: [], lanes: 0 };
+
+    const segs = monthEvents
+      .filter((e) => e.endD >= firstD && e.startD <= lastD)
+      .map((e) => {
+        const from = e.startD < firstD ? firstD : e.startD;   // clipped to this week
+        const to = e.endD > lastD ? lastD : e.endD;
+        return {
+          e,
+          s: col + dayDiff(firstD, from),
+          t: col + dayDiff(firstD, to),
+          startsHere: sameDay(from, e.startD),
+          endsHere: sameDay(to, e.endD),
+        };
+      })
+      // longest first within a start column, so big spans land in the top lane
+      .sort((a, b) => a.s - b.s || (b.t - b.s) - (a.t - a.s));
+
+    const lanes = [];   // lanes[i] = segments already placed in that lane
+    segs.forEach((seg) => {
+      let lane = 0;
+      while (lanes[lane] && lanes[lane].some((o) => seg.s <= o.t && seg.t >= o.s)) lane++;
+      if (!lanes[lane]) lanes[lane] = [];
+      lanes[lane].push(seg);
+      seg.lane = lane;
+    });
+    return { bars: segs, lanes: lanes.length };
+  }, []);
+
   // ---- per-month event helpers ----
   const overlapsMonth = useCallback((ev, y, m) => {
     const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
@@ -412,50 +462,6 @@ export default function Juan() {
                   const key = `${y}-${pad(m + 1)}`;
                   const phase = phaseForMonth(y, m);
                   const monthEvents = visibleEvents.filter((e) => overlapsMonth(e, y, m));
-                  const firstDow = new Date(y, m, 1).getDay();
-                  const daysInMonth = new Date(y, m + 1, 0).getDate();
-                  const cells = [];
-                  for (let b = 0; b < firstDow; b++) cells.push(<div key={`b${b}`} className="cal-cell blank" />);
-                  for (let day = 1; day <= daysInMonth; day++) {
-                    const d = new Date(y, m, day);
-                    const inArc = d >= arcStart && d <= arcEnd;
-                    const dayPhase = phaseForDate(d);
-                    const isToday = sameDay(d, now);
-                    const dayEvents = monthEvents.filter((e) => d >= e.startD && d <= e.endD);
-                    cells.push(
-                      <div key={`d${day}`} className={`cal-cell ${!inArc ? "out" : ""} ${isToday ? "today" : ""}`}
-                        style={{ background: inArc && dayPhase ? dayPhase.colorSoft : undefined }}
-                        onClick={inArc ? () => openModal(dateStr(d)) : undefined}>
-                        <div className="cal-daynum">{day}</div>
-                        {dayEvents.map((e) => {
-                          const who = person(e.person);
-                          const c = cat(e.cat);
-                          const isStart = sameDay(d, e.startD), isEnd = sameDay(d, e.endD);
-                          const type = isStart && isEnd ? "single" : isStart ? "start" : isEnd ? "end" : "mid";
-                          const showLabel = type === "single" || type === "start";
-                          return (
-                            <div key={e.id} className={`cal-event seg-${type} ${e.pending ? "is-pending" : ""}`} role="button" tabIndex={0}
-                              style={{ background: hexToRgba(who.color, e.pending ? 0.1 : 0.22), borderLeftColor: who.color }}
-                              title={`${who.label} · ${c.label}${e.pending ? " · pending" : ""} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}\nClick to edit`}
-                              onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
-                              onKeyDown={(evt) => {
-                                if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); evt.stopPropagation(); openEdit(e); }
-                              }}>
-                              {showLabel ? (
-                                <>
-                                  {/* the text hides on narrow screens; the emoji stays as the marker */}
-                                  <span className="cal-ev-emoji">{evEmoji(e)}</span>
-                                  <span className="cal-ev-text">{e.text}</span>
-                                  <button className="cal-ev-del" title="Delete"
-                                    onClick={(evt) => { evt.stopPropagation(); deleteEvent(e.id); }}>✕</button>
-                                </>
-                              ) : " "}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  }
                   return (
                     <div key={key} className={`cal-month ${key === curMonthKey ? "is-current" : ""}`}
                       style={{ borderTop: phase ? `6px solid ${phase.color}` : undefined }}>
@@ -465,7 +471,57 @@ export default function Juan() {
                       </div>
                       <div className="cal-grid">
                         {WEEKDAYS.map((w) => <div key={w} className="cal-weekday">{w}</div>)}
-                        {cells}
+                      </div>
+                      <div className="cal-weeks">
+                        {weeksOf(y, m).map((week, wi) => {
+                          const { bars, lanes } = barsForWeek(week, monthEvents);
+                          return (
+                            <div key={wi} className="cal-week"
+                              // explicit rows: one for the date numbers, one per event lane.
+                              // day cells span 1/-1, which only counts EXPLICIT rows.
+                              style={{ gridTemplateRows: `var(--daynum-h) repeat(${Math.max(lanes, 1)}, minmax(var(--bar-h), auto))` }}>
+                              {week.map((d, i) => {
+                                if (!d) return <div key={`b${i}`} className="cal-cell blank" style={{ gridColumn: i + 1 }} />;
+                                const inArc = d >= arcStart && d <= arcEnd;
+                                const dayPhase = phaseForDate(d);
+                                return (
+                                  <div key={`d${i}`} className={`cal-cell ${!inArc ? "out" : ""} ${sameDay(d, now) ? "today" : ""}`}
+                                    style={{ gridColumn: i + 1, background: inArc && dayPhase ? dayPhase.colorSoft : undefined }}
+                                    onClick={inArc ? () => openModal(dateStr(d)) : undefined}>
+                                    <div className="cal-daynum">{d.getDate()}</div>
+                                  </div>
+                                );
+                              })}
+                              {bars.map((seg) => {
+                                const e = seg.e;
+                                const who = person(e.person);
+                                const c = cat(e.cat);
+                                const days = seg.t - seg.s + 1;
+                                return (
+                                  <div key={e.id} role="button" tabIndex={0}
+                                    className={`cal-event cal-bar span-${days} ${seg.startsHere ? "" : "cont-left"} ${seg.endsHere ? "" : "cont-right"} ${e.pending ? "is-pending" : ""}`}
+                                    style={{
+                                      gridColumn: `${seg.s + 1} / span ${days}`,
+                                      gridRow: seg.lane + 2,
+                                      background: hexToRgba(who.color, e.pending ? 0.1 : 0.22),
+                                      // the accent spine belongs only where the event actually starts
+                                      borderLeftColor: seg.startsHere ? who.color : "transparent",
+                                    }}
+                                    title={`${who.label} · ${c.label}${e.pending ? " · pending" : ""} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}\nClick to edit`}
+                                    onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
+                                    onKeyDown={(evt) => {
+                                      if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); evt.stopPropagation(); openEdit(e); }
+                                    }}>
+                                    <span className="cal-ev-emoji">{evEmoji(e)}</span>
+                                    <span className="cal-ev-text">{e.text}</span>
+                                    <button className="cal-ev-del" title="Delete"
+                                      onClick={(evt) => { evt.stopPropagation(); deleteEvent(e.id); }}>✕</button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );

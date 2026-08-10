@@ -215,12 +215,23 @@
 .tl .cal-phase { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--tl-ink-soft); }
 .tl .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .tl .cal-weekday { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 1px; color: var(--tl-ink-soft); padding: 6px 0; border-top: 1px solid var(--tl-line); }
+
+/* One grid per WEEK. Row 1 holds the date numbers; each further row is a lane
+   for event bars. Day cells span every row (so they still draw the calendar
+   grid) and the bars sit on top, spanning as many columns as they last days. */
+.tl .cal-weeks { display: flex; flex-direction: column; }
+.tl .cal-week {
+  --daynum-h: 20px;
+  --bar-h: 17px;
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border-right: 1px solid var(--tl-line);
+}
 .tl .cal-cell {
+  grid-row: 1 / -1;
   min-height: 82px; border-top: 1px solid var(--tl-line); border-left: 1px solid var(--tl-line);
   padding: 4px 4px 5px; position: relative; cursor: pointer; transition: background 140ms ease;
   display: flex; flex-direction: column; gap: 3px;
 }
-.tl .cal-cell:nth-child(7n) { border-right: 1px solid var(--tl-line); }
 .tl .cal-cell:hover { background: rgba(197,107,74,0.06); }
 .tl .cal-cell.blank { background: repeating-linear-gradient(45deg,#faf5ee,#faf5ee 6px,#f4ece0 6px,#f4ece0 12px); cursor: default; }
 .tl .cal-cell.out { opacity: 0.4; cursor: default; }
@@ -251,10 +262,15 @@
 }
 .tl .cal-event.is-pending .cal-ev-emoji { opacity: 0.75; }
 
-.tl .cal-event.seg-single { border-radius: 6px; }
-.tl .cal-event.seg-start  { border-radius: 6px 0 0 6px; }
-.tl .cal-event.seg-mid    { border-radius: 0; border-left-color: transparent; min-height: 16px; }
-.tl .cal-event.seg-end    { border-radius: 0 6px 6px 0; border-left-color: transparent; min-height: 16px; }
+/* a spanning bar: sits above the day cells, inset slightly so it doesn't
+   swallow the grid lines, and squared off on whichever end continues into
+   the next/previous week */
+.tl .cal-bar {
+  z-index: 1; align-self: start; margin: 0 3px;
+  min-height: var(--bar-h); border-radius: 6px;
+}
+.tl .cal-bar.cont-left  { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+.tl .cal-bar.cont-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
 .tl .page-foot { text-align: center; color: var(--tl-ink-soft); font-size: 0.85rem; font-style: italic; margin-top: 40px; }
 
@@ -333,13 +349,17 @@
   .tl .cal-month-head h3 { font-size: 1.05rem; }
   .tl .cal-phase { font-size: 0.62rem; letter-spacing: 0.8px; }
   .tl .cal-weekday { font-size: 0.56rem; letter-spacing: 0.3px; padding: 5px 0; }
+  .tl .cal-week { --daynum-h: 15px; --bar-h: 15px; }
   .tl .cal-cell { min-height: 56px; padding: 2px 2px 3px; gap: 2px; }
   .tl .cal-daynum { font-size: 0.62rem; }
-  /* a 7-across cell is too narrow for words — show the emoji as the marker */
-  .tl .cal-event { font-size: 0.62rem; padding: 1px 2px; border-left-width: 2px; justify-content: center; min-height: 15px; }
-  .tl .cal-ev-text { display: none; }
-  .tl .cal-ev-emoji { font-size: 0.8rem; line-height: 1.1; }
-  .tl .cal-event.seg-mid, .tl .cal-event.seg-end { min-height: 11px; }
+  .tl .cal-event { font-size: 0.62rem; padding: 1px 3px; border-left-width: 2px; }
+  .tl .cal-bar { margin: 0 2px; }
+  .tl .cal-ev-emoji { font-size: 0.72rem; line-height: 1.15; }
+  /* a bar spanning 2+ days is wide enough to read; a single day isn't, so
+     there the emoji alone is the marker (tap it to see the title) */
+  .tl .cal-bar.span-1 { justify-content: center; padding: 1px; }
+  .tl .cal-bar.span-1 .cal-ev-text { display: none; }
+  .tl .cal-bar.span-1 .cal-ev-emoji { font-size: 0.8rem; }
 
   /* month cards: nearly full-width so they don't feel clipped */
   .tl .month-card { flex: 0 0 82vw; }
