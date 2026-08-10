@@ -8,8 +8,7 @@
 // ============================================================
 
 export const PAGE = {
-  title: "Our Timeline",
-  subtitle: "One continuous arc — together, apart, and together forever.",
+  title: "Our Calendar",
   footer: "Made with love 💛",
 };
 
