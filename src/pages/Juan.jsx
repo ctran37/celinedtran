@@ -8,6 +8,7 @@ import {
 import "./juan.css";
 
 const TABLE = "timeline_events";
+const FEEDBACK_TABLE = "feedback";
 const COLS = "id, start_date, end_date, category, person, emoji, text, pending";
 const LEGACY_COLS = "id, start_date, end_date, category, person, emoji, text";
 // `id: null` means "adding"; an id means "editing that row".
@@ -200,11 +201,32 @@ export default function Juan() {
   }, []);
   const closeModal = useCallback(() => setForm((f) => ({ ...f, open: false })), []);
 
+  // ---- feedback ----
+  // Writes to the insert-only `feedback` table; a scheduled GitHub Action turns
+  // each new row into an issue. See script/feedback.sql.
+  const [fb, setFb] = useState({ open: false, message: "", sending: false, sent: false, error: "" });
+  const closeFb = useCallback(() => setFb((s) => ({ ...s, open: false })), []);
+  const sendFeedback = useCallback(async () => {
+    const message = fb.message.trim();
+    if (!message) return setFb((s) => ({ ...s, error: "Write a little something first." }));
+    if (message.length > 2000) return setFb((s) => ({ ...s, error: "That's a bit long — 2000 characters max." }));
+    setFb((s) => ({ ...s, sending: true, error: "" }));
+    // no .select() on purpose: there's no read policy, and asking for the row
+    // back would make a successful insert look like a failure
+    const { error } = await supabase.from(FEEDBACK_TABLE).insert({
+      message,
+      page: window.location.pathname,
+      user_agent: navigator.userAgent.slice(0, 400),
+    });
+    if (error) return setFb((s) => ({ ...s, sending: false, error: error.message }));
+    setFb((s) => ({ ...s, sending: false, sent: true, message: "" }));
+  }, [fb.message]);
+
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") closeModal(); };
+    const onKey = (e) => { if (e.key === "Escape") { closeModal(); closeFb(); } };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [closeModal]);
+  }, [closeModal, closeFb]);
 
   const saveEvent = useCallback(async () => {
     const startVal = form.start;
@@ -566,6 +588,13 @@ export default function Juan() {
         <footer className="page-foot">{PAGE.footer}</footer>
       </div>
 
+      {/* floats bottom-right, above the page but under the modal overlay */}
+      <button type="button" className="fb-launch" aria-label="Send feedback"
+        onClick={() => setFb({ open: true, message: "", name: "", sending: false, sent: false, error: "" })}>
+        <span className="fb-launch-icon">💬</span>
+        <span className="fb-launch-text">Feedback</span>
+      </button>
+
       {/* ADD / EDIT EVENT MODAL — same form both ways; form.id decides which */}
       {form.open && (
         <div className="tl-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
@@ -652,6 +681,50 @@ export default function Juan() {
                 {saving ? "Saving…" : form.id ? "Save changes" : "Save event"}
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {/* FEEDBACK MODAL — one row into `feedback`, which a scheduled GitHub
+          Action files as an issue on ctran37/celinedtran */}
+      {fb.open && (
+        <div className="tl-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeFb(); }}>
+          <form className="tl-modal" onSubmit={(e) => { e.preventDefault(); sendFeedback(); }}>
+            <div className="modal-head">
+              <span className="modal-eyebrow">Feedback</span>
+              <h3>{fb.sent ? "Thank you 💛" : "What could be better?"}</h3>
+              <p className="modal-sub">
+                {fb.sent
+                  ? "It's saved — it'll turn up as a GitHub issue within the hour."
+                  : "Bugs, ideas, anything that feels off."}
+              </p>
+            </div>
+
+            {fb.sent ? (
+              <div className="modal-actions">
+                <button type="button" className="tl-btn primary" onClick={closeFb}>Close</button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="tl-fb-msg">Your note <span className="sub">(anonymous)</span></label>
+                <textarea id="tl-fb-msg" rows={5} maxLength={2000} autoFocus
+                  placeholder="The calendar looks squished on my phone…"
+                  value={fb.message} onChange={(e) => setFb((s) => ({ ...s, message: e.target.value }))} />
+
+                <p className="fb-note">
+                  No name is attached. Heads up though: the repo is public, so this
+                  becomes a public GitHub issue.
+                </p>
+
+                <div className="modal-err">{fb.error}</div>
+                <div className="modal-actions">
+                  <button type="button" className="tl-btn" onClick={closeFb}>Cancel</button>
+                  <button type="submit" className="tl-btn primary" disabled={fb.sending}>
+                    {fb.sending ? "Sending…" : "Send feedback"}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         </div>
       )}

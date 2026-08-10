@@ -1,0 +1,34 @@
+name: File Feedback as Issues
+
+on:
+  schedule:
+    # every hour at :23 (off the hour — GitHub delays runs that pile up on :00)
+    - cron: "23 * * * *"
+  workflow_dispatch: # manual trigger from the Actions tab
+
+# GITHUB_TOKEN is read-only by default; opening issues needs this.
+permissions:
+  issues: write
+
+concurrency:
+  group: file-feedback
+  cancel-in-progress: false
+
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node script/file-feedback-issues.js
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          # service-role / secret key — the feedback table is insert-only under
+          # RLS, so the publishable key can't read it back. Add this secret in
+          # Settings -> Secrets and variables -> Actions.
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

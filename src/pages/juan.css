@@ -277,6 +277,24 @@
 .tl .cal-bar.cont-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
 .tl .page-foot { text-align: center; color: var(--tl-ink-soft); font-size: 0.85rem; font-style: italic; margin-top: 40px; }
+/* floating feedback button — z-index sits under .tl-modal-overlay (50) so the
+   dialog covers it, and above the page's own stacking (sticky heads are 2) */
+.tl .fb-launch {
+  position: fixed; z-index: 40;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--tl-font-body); font-size: 0.85rem; color: var(--tl-ink);
+  background: var(--tl-surface); border: 1px solid var(--tl-line); border-radius: 999px;
+  padding: 10px 18px; cursor: pointer; box-shadow: 0 6px 20px rgba(120, 90, 60, 0.22);
+  transition: transform 140ms ease, box-shadow 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.tl .fb-launch:hover {
+  color: var(--tl-accent); border-color: var(--tl-accent);
+  transform: translateY(-2px); box-shadow: 0 10px 26px rgba(120, 90, 60, 0.28);
+}
+.tl .fb-launch:focus-visible { outline: 2px solid var(--tl-accent); outline-offset: 2px; }
+.tl .fb-launch-icon { font-size: 1rem; line-height: 1; }
 
 /* modal */
 .tl-modal-overlay { position: fixed; inset: 0; background: rgba(60,45,35,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; font-family: "Georgia", serif; }
@@ -295,6 +313,13 @@
   border: 1px solid #e7dccd; border-radius: 10px; padding: 9px 11px; background: #fbf6ef;
 }
 .tl-modal input:focus { outline: none; border-color: #c56b4a; }
+.tl-modal textarea {
+  width: 100%; font-family: "Georgia", serif; font-size: 1rem; color: #4a3f39;
+  border: 1px solid #e7dccd; border-radius: 10px; padding: 9px 11px; background: #fbf6ef;
+  resize: vertical; line-height: 1.5;
+}
+.tl-modal textarea:focus { outline: none; border-color: #c56b4a; }
+.tl-modal .fb-note { margin: 14px 0 0; font-size: 0.75rem; color: #8a7d73; font-style: italic; }
 .tl-modal .date-row { display: flex; gap: 12px; }
 .tl-modal .date-row > div { flex: 1; }
 .tl-modal .cat-pick { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
@@ -334,7 +359,8 @@
 }
 
 @media (max-width: 640px) {
-  .tl .wrap { padding: 26px 12px 52px; }
+  /* extra bottom room so the floating button never sits on the footer */
+  .tl .wrap { padding: 26px 12px 78px; }
   .tl section { margin-bottom: 32px; }
   .tl .page-head h1 { font-size: 1.7rem; }
   .tl .page-head .subtitle { font-size: 0.95rem; }
@@ -378,6 +404,12 @@
   .tl .stat .num { font-size: 1.25rem; }
   .tl .stat .cap { font-size: 0.62rem; letter-spacing: 0.8px; }
 
+  /* feedback button: tighter, and clear of the safe area */
+  .tl .fb-launch {
+    right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    font-size: 0.8rem; padding: 9px 15px;
+  }
+
   /* modal */
   .tl-modal { padding: 20px 18px 18px; max-height: 88vh; }
   .tl-modal .date-row { flex-wrap: wrap; gap: 8px; }
@@ -386,7 +418,10 @@
 }
 
 @media (max-width: 400px) {
-  .tl .wrap { padding: 22px 8px 44px; }
+  .tl .wrap { padding: 22px 8px 74px; }
+  /* no room for the word at this width — the icon carries it */
+  .tl .fb-launch { padding: 10px 12px; }
+  .tl .fb-launch-text { display: none; }
   .tl .cal-cell { min-height: 50px; }
   .tl .cal-weekday { font-size: 0.5rem; }
   .tl .cal-event { font-size: 0.58rem; }
@@ -401,7 +436,7 @@
   .tl .wrap { max-width: 100%; padding: 0; }
   .tl .here-marker, .tl .here-label, .tl .progress-track, .tl .progress-stats,
   .tl .scroll-hint, .tl .today-line, .tl .toolbar, .tl .m-add, .tl .ev-del,
-  .tl .cat-filter, .tl-modal-overlay { display: none !important; }
+  .tl .cat-filter, .tl-modal-overlay, .tl .fb-launch { display: none !important; }
   .tl .page-head h1 { font-size: 20pt; }
   .tl section { margin-bottom: 20px; page-break-inside: avoid; }
   .tl .overview, .tl .focus-card, .tl .month-card, .tl .cal-month { border: 1px solid #999; box-shadow: none; }
