@@ -51,11 +51,6 @@ export default function Juan() {
     return null;
   }, [phases, arcEnd]);
   const phaseForMonth = useCallback((y, m) => phaseForDate(new Date(y, m, 15)) || phaseForDate(new Date(y, m, 1)), [phaseForDate]);
-  const activePhase = useMemo(() => {
-    for (const p of phases) if (now >= p.startD && now < p.endD) return p;
-    return null;
-  }, [phases, now]);
-
   const months = useMemo(() => {
     const out = [];
     let c = new Date(arcStart.getFullYear(), arcStart.getMonth(), 1);
@@ -155,13 +150,11 @@ export default function Juan() {
   const cardsRef = useRef(null);
   const calRef = useRef(null);
 
-  // the calendar renders every month in one scrollable column; this just
-  // tells us which one to scroll to (and lets "Jump to today" work).
+  // every month is rendered down the page, so "jump to today" scrolls the
+  // PAGE to the current month rather than an inner scroll box.
   const scrollToCurrentMonth = useCallback((behavior = "auto") => {
-    const box = calRef.current;
-    const target = box && box.querySelector(".cal-month.is-current");
-    if (!box || !target) return;
-    box.scrollTo({ top: target.offsetTop - box.offsetTop, behavior });
+    const target = calRef.current && calRef.current.querySelector(".cal-month.is-current");
+    if (target) target.scrollIntoView({ behavior, block: "start" });
   }, []);
 
   // ---- collapsible sections ----
@@ -262,10 +255,10 @@ export default function Juan() {
     return "all mo.";
   }, []);
 
-  // ---- status / countdown ----
-  // The countdown only exists during the separation, and it counts UP toward
-  // the reunion (never down toward a goodbye). Before/after that, we just show
-  // a warm message with no numbers.
+  // ---- countdown ----
+  // Exists ONLY during the separation, and counts UP toward the reunion (never
+  // down toward a goodbye). Outside that window this is null and the section
+  // isn't rendered at all.
   const status = useMemo(() => {
     const reunionDate = phases[phases.length - 1].startD;       // when we're together again
     const separationStart = phases[phases.length - 2].startD;   // when apart begins
@@ -290,14 +283,8 @@ export default function Juan() {
         ],
       };
     }
-    if (activePhase) {
-      return { mode: "message", color: activePhase.color, title: activePhase.label, message: activePhase.message };
-    }
-    if (now < arcStart) {
-      return { mode: "message", color: phases[0].color, title: "Almost time", message: "Our time together starts soon. 🌱" };
-    }
-    return { mode: "message", color: phases[phases.length - 1].color, title: "Full circle", message: "We made it all the way through. 💛" };
-  }, [activePhase, now, arcStart, phases]);
+    return null;
+  }, [now, phases]);
 
   // live date summary under the modal title, follows the two date inputs
   const formDateLabel = useMemo(() => {
@@ -418,7 +405,6 @@ export default function Juan() {
           {view === "calendar" && (
             <div className="view-calendar">
               <div className="cal-nav">
-                <p className="scroll-hint">↕ scroll to move through the months</p>
                 <button className="cal-today" onClick={() => scrollToCurrentMonth("smooth")}>Jump to today</button>
               </div>
               <div className="calendar" ref={calRef}>
@@ -490,9 +476,11 @@ export default function Juan() {
           </>)}
         </section>
 
-        {/* COUNTDOWN — below the calendar, and only during the time apart */}
+        {/* COUNTDOWN — only while apart. The old "Right now" phase-message
+            version of this card is gone; nothing shows outside the countdown. */}
+        {status && (
         <section>
-          {sectionHead(status.mode === "countdown" ? "Countdown" : "Right now", "now")}
+          {sectionHead("Countdown", "now")}
           {!collapsed.now && (
           <div className="focus-card" style={{ borderLeftColor: status.color }}>
             <div className="focus-head">
@@ -500,21 +488,18 @@ export default function Juan() {
               {status.range && <span className="focus-range">{status.range}</span>}
             </div>
             <p className="focus-message">{status.message}</p>
-            {status.mode === "countdown" && (
-              <>
-                <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${status.pct}%`, background: status.color }} />
-                </div>
-                <div className="progress-stats">
-                  {status.stats.map(([num, capLabel], i) => (
-                    <div key={i} className="stat"><span className="num">{num}</span><span className="cap">{capLabel}</span></div>
-                  ))}
-                </div>
-              </>
-            )}
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${status.pct}%`, background: status.color }} />
+            </div>
+            <div className="progress-stats">
+              {status.stats.map(([num, capLabel], i) => (
+                <div key={i} className="stat"><span className="num">{num}</span><span className="cap">{capLabel}</span></div>
+              ))}
+            </div>
           </div>
           )}
         </section>
+        )}
 
         <footer className="page-foot">{PAGE.footer}</footer>
       </div>

@@ -188,20 +188,17 @@
 .tl .scroll-hint { font-size: 0.8rem; color: var(--tl-ink-soft); font-style: italic; margin: 0 0 8px; }
 
 /* calendar */
-.tl .cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.tl .cal-nav .scroll-hint { margin: 0; }
+.tl .cal-nav { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 10px; }
 .tl .cal-today {
   font-family: var(--tl-font-body); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
   border: 1px solid var(--tl-line); background: transparent; color: var(--tl-accent);
   border-radius: 999px; padding: 3px 10px; cursor: pointer;
 }
 .tl .cal-today:hover { border-color: var(--tl-accent); }
-/* every month lives in one scrollable column — no next/prev needed */
-.tl .calendar {
-  display: flex; flex-direction: column; gap: 26px;
-  max-height: 78vh; overflow-y: auto; overscroll-behavior: contain;
-  padding: 4px 4px 8px; margin: 0 -4px;
-}
+/* every month is laid out down the page — the PAGE scrolls, there's no inner
+   scroll box, so nothing traps the wheel and the month heads stick to the
+   top of the viewport as you go. */
+.tl .calendar { display: flex; flex-direction: column; gap: 26px; }
 .tl .cal-month { background: var(--tl-surface); border-radius: var(--tl-radius); box-shadow: var(--tl-shadow); overflow: hidden; flex: none; }
 .tl .cal-month.is-current { outline: 3px solid var(--tl-accent); outline-offset: 2px; }
 .tl .cal-month-head {
@@ -312,7 +309,6 @@
   .tl .page-head h1 { font-size: 2rem; }
   .tl .focus-card { padding: 24px 22px 26px; }
   .tl .focus-head h2 { font-size: 1.45rem; }
-  .tl .calendar { max-height: 72vh; }
   .tl .cal-cell { min-height: 70px; }
   .tl .cal-event { font-size: 0.64rem; }
 }
@@ -331,14 +327,7 @@
 
   /* calendar */
   .tl .cal-nav { gap: 8px; flex-wrap: wrap; }
-  .tl .cal-nav .scroll-hint { font-size: 0.72rem; }
-  .tl .calendar {
-    max-height: 68vh; gap: 18px;
-    padding: 3px 2px 6px; margin: 0 -2px;
-    -webkit-overflow-scrolling: touch;
-    /* let touch scrolling continue into the page once the months run out */
-    overscroll-behavior: auto;
-  }
+  .tl .calendar { gap: 18px; }
   .tl .cal-month.is-current { outline-width: 2px; outline-offset: 1px; }
   .tl .cal-month-head { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
   .tl .cal-month-head h3 { font-size: 1.05rem; }
@@ -380,18 +369,7 @@
   .tl .cal-daynum { font-size: 0.58rem; }
 }
 
-/* short viewports (phone landscape) — don't let the scroller eat the screen */
-@media (max-height: 620px) {
-  .tl .calendar { max-height: 60vh; }
-}
-
-/* modern units where supported, so mobile browser chrome doesn't clip it */
-@supports (height: 1dvh) {
-  .tl .calendar { max-height: 78dvh; }
-  @media (max-width: 860px) { .tl .calendar { max-height: 72dvh; } }
-  @media (max-width: 640px) { .tl .calendar { max-height: 68dvh; } }
-  @media (max-height: 620px) { .tl .calendar { max-height: 60dvh; } }
-}
+/* the calendar has no height cap of its own any more — the page scrolls */
 
 /* PRINT */
 @media print {
