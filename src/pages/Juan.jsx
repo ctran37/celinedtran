@@ -8,8 +8,10 @@ import {
 import "./juan.css";
 
 const TABLE = "timeline_events";
+const COLS = "id, start_date, end_date, category, person, emoji, text, pending";
+const LEGACY_COLS = "id, start_date, end_date, category, person, emoji, text";
 // `id: null` means "adding"; an id means "editing that row".
-const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, error: "" };
+const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji: "", cat: CATEGORIES[0].id, person: PEOPLE[0].id, pending: false, error: "" };
 
 const focusText = () =>
   setTimeout(() => { const el = document.getElementById("tl-ev-text"); if (el) el.focus(); }, 50);
@@ -72,16 +74,15 @@ export default function Juan() {
   const [saving, setSaving] = useState(false);
 
   const fetchEvents = useCallback(async () => {
-    const rows = () => supabase
-      .from(TABLE)
-      .select("id, start_date, end_date, category, person, emoji, text");
+    const rows = (cols) => supabase.from(TABLE).select(cols).order("start_date", { ascending: true });
     // soft-deleted rows stay in the table, just hidden here
-    let { data, error } = await rows().is("deleted_at", null).order("start_date", { ascending: true });
-    // 42703 = no such column, i.e. timeline_events_audit.sql hasn't been run
-    // yet. Fall back to the unfiltered query so the page still renders.
+    let { data, error } = await rows(COLS).is("deleted_at", null);
+    // 42703 = no such column, i.e. one of the migrations in script/ hasn't
+    // been run yet. Fall back to the original columns so the page still
+    // renders (events just show as confirmed until `pending` exists).
     if (error && error.code === "42703") {
-      console.warn("timeline: no deleted_at column — run script/timeline_events_audit.sql");
-      ({ data, error } = await rows().order("start_date", { ascending: true }));
+      console.warn("timeline: missing deleted_at/pending column — run the SQL in script/ (timeline_events_audit.sql, timeline_events_pending.sql)");
+      ({ data, error } = await rows(LEGACY_COLS));
     }
     if (error) {
       setLoadErr(error.message);
@@ -92,7 +93,10 @@ export default function Juan() {
       const sD = parseDate(r.start_date);
       let eD = r.end_date ? parseDate(r.end_date) : sD;
       if (eD < sD) eD = sD;
-      return { id: r.id, startD: sD, endD: eD, cat: normCat(r.category), person: normPerson(r.person), emoji: r.emoji || "", text: r.text || "" };
+      return {
+        id: r.id, startD: sD, endD: eD, cat: normCat(r.category), person: normPerson(r.person),
+        emoji: r.emoji || "", text: r.text || "", pending: r.pending === true,
+      };
     });
     norm.sort((a, b) => (a.startD - b.startD) || ((b.endD - b.startD) - (a.endD - a.startD)));
     setEvents(norm);
@@ -195,7 +199,7 @@ export default function Juan() {
       open: true, id: ev.id, error: "",
       start: dateStr(ev.startD),
       end: sameDay(ev.startD, ev.endD) ? "" : dateStr(ev.endD),
-      text: ev.text, emoji: ev.emoji || "", cat: ev.cat, person: ev.person,
+      text: ev.text, emoji: ev.emoji || "", cat: ev.cat, person: ev.person, pending: ev.pending,
     });
     focusText();
   }, []);
@@ -219,7 +223,8 @@ export default function Juan() {
       return setForm((f) => ({ ...f, error: `Those dates fall outside the timeline (${fmtShort(arcStart)} – ${fmtShort(arcEnd)}).` }));
     setSaving(true);
     const row = {
-      start_date: startVal, end_date: endVal, category: form.cat, person: form.person, emoji: form.emoji.trim(), text,
+      start_date: startVal, end_date: endVal, category: form.cat, person: form.person,
+      emoji: form.emoji.trim(), text, pending: form.pending,
     };
     // on edit we ask for the row back: Postgres/RLS answers a blocked UPDATE
     // with "200, zero rows" rather than an error, which would otherwise look
@@ -228,7 +233,12 @@ export default function Juan() {
       ? await supabase.from(TABLE).update(row).eq("id", form.id).select("id")
       : await supabase.from(TABLE).insert(row);
     setSaving(false);
-    if (error) return setForm((f) => ({ ...f, error: error.message }));
+    if (error) return setForm((f) => ({
+      ...f,
+      error: error.code === "42703"
+        ? "The database doesn't have the `pending` column yet — run script/timeline_events_pending.sql."
+        : error.message,
+    }));
     if (form.id && (!data || data.length === 0))
       return setForm((f) => ({ ...f, error: "The database wouldn't accept the edit — the table is missing an UPDATE policy, so nothing was changed." }));
     closeModal();
@@ -332,6 +342,7 @@ export default function Juan() {
             {PEOPLE.map((p) => (
               <span key={p.id} className="legend-item"><span className="dot" style={{ background: p.color }} />{p.label}</span>
             ))}
+            <span className="legend-item"><span className="dash-key" />dashed = pending</span>
           </div>
 
           {/* CARDS */}
@@ -360,11 +371,13 @@ export default function Juan() {
                             const who = person(item.person);
                             const c = cat(item.cat);
                             return (
-                              <li key={item.id} style={{ borderLeftColor: who.color }}
-                                title={`${who.label} · ${c.label}` + (sameDay(item.startD, item.endD) ? "" : `  ·  ${fmtShort(item.startD)} – ${fmtShort(item.endD)}`)}>
+                              <li key={item.id} className={item.pending ? "is-pending" : ""} style={{ borderLeftColor: who.color }}
+                                title={`${who.label} · ${c.label}${item.pending ? " · pending" : ""}` + (sameDay(item.startD, item.endD) ? "" : `  ·  ${fmtShort(item.startD)} – ${fmtShort(item.endD)}`)}>
                                 <span className="m-day">{rangeLabel(item, y, m)}</span>
                                 <span className="m-emoji">{evEmoji(item)}</span>
-                                <button className="m-text" title="Edit this event" onClick={() => openEdit(item)}>{item.text}</button>
+                                <button className="m-text" title="Edit this event" onClick={() => openEdit(item)}>
+                                  {item.text}{item.pending && <span className="m-maybe">pending</span>}
+                                </button>
                                 <button className="ev-del" title="Delete" onClick={() => deleteEvent(item.id)}>✕</button>
                               </li>
                             );
@@ -426,9 +439,9 @@ export default function Juan() {
                           const type = isStart && isEnd ? "single" : isStart ? "start" : isEnd ? "end" : "mid";
                           const showLabel = type === "single" || type === "start";
                           return (
-                            <div key={e.id} className={`cal-event seg-${type}`} role="button" tabIndex={0}
-                              style={{ background: hexToRgba(who.color, 0.22), borderLeftColor: who.color }}
-                              title={`${who.label} · ${c.label} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}\nClick to edit`}
+                            <div key={e.id} className={`cal-event seg-${type} ${e.pending ? "is-pending" : ""}`} role="button" tabIndex={0}
+                              style={{ background: hexToRgba(who.color, e.pending ? 0.1 : 0.22), borderLeftColor: who.color }}
+                              title={`${who.label} · ${c.label}${e.pending ? " · pending" : ""} · ${e.text}${sameDay(e.startD, e.endD) ? "" : `  (${fmtShort(e.startD)} – ${fmtShort(e.endD)})`}\nClick to edit`}
                               onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
                               onKeyDown={(evt) => {
                                 if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); evt.stopPropagation(); openEdit(e); }
@@ -523,6 +536,16 @@ export default function Juan() {
                   <span className="dot" style={{ background: c.color }} />{c.emoji} {c.label}
                 </button>
               ))}
+            </div>
+
+            <label>How sure is it?</label>
+            <div className="cat-pick">
+              <button type="button"
+                className={`cat-pick-chip ${form.pending ? "" : "selected"}`}
+                onClick={() => setForm((f) => ({ ...f, pending: false }))}>✓ Confirmed</button>
+              <button type="button"
+                className={`cat-pick-chip ${form.pending ? "selected" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, pending: true }))}>? Pending</button>
             </div>
 
             <div className="date-row">

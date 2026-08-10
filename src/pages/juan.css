@@ -127,6 +127,10 @@
 .tl .people-legend .legend-label { text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.68rem; }
 .tl .people-legend .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .tl .people-legend .dot { width: 11px; height: 11px; border-radius: 50%; }
+.tl .people-legend .dash-key {
+  width: 16px; height: 10px; border-radius: 3px;
+  border: 1px dashed var(--tl-ink-soft); background: transparent;
+}
 
 /* month cards */
 .tl .months-scroll { display: flex; gap: 18px; overflow-x: auto; padding: 6px 4px 22px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
@@ -158,6 +162,15 @@
 }
 .tl button.m-text:hover { color: var(--tl-accent); text-decoration: underline; }
 .tl .milestones .empty { color: var(--tl-ink-soft); font-style: italic; border-bottom: none; border-left: none; padding-left: 0; }
+/* pending rows: dashed spine + a small tag, so they read as "not settled" */
+.tl .milestones li.is-pending { border-left-style: dashed; }
+.tl .milestones li.is-pending .m-day,
+.tl .milestones li.is-pending button.m-text { font-style: italic; opacity: 0.82; }
+.tl .m-maybe {
+  display: inline-block; margin-left: 6px; font-size: 0.6rem; font-style: normal;
+  text-transform: uppercase; letter-spacing: 0.8px; color: var(--tl-ink-soft);
+  border: 1px dashed var(--tl-line); border-radius: 999px; padding: 0 6px; vertical-align: 1px;
+}
 .tl .ev-del {
   flex: 0 0 auto; border: none; background: transparent; color: var(--tl-ink-soft); cursor: pointer;
   font-size: 0.85rem; line-height: 1; padding: 2px 4px; border-radius: 6px; opacity: 0.5;
@@ -231,6 +244,16 @@
 .tl .cal-ev-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .tl .cal-ev-del { position: absolute; top: 0; right: 0; border: none; background: transparent; color: #b23b3b; cursor: pointer; font-size: 0.7rem; padding: 0 3px; display: none; }
 .tl .cal-event:hover .cal-ev-del { display: inline; }
+/* pending = not a solid plan yet: dashed outline, lighter fill, italic */
+/* the left border's COLOR comes from the inline person color, which beats
+   this shorthand; only the dashed style and width come from here. */
+.tl .cal-event.is-pending {
+  border: 1px dashed var(--tl-ink-soft);
+  border-left: 3px dashed var(--tl-accent);
+  font-style: italic;
+}
+.tl .cal-event.is-pending .cal-ev-emoji { opacity: 0.75; }
+
 .tl .cal-event.seg-single { border-radius: 6px; }
 .tl .cal-event.seg-start  { border-radius: 6px 0 0 6px; }
 .tl .cal-event.seg-mid    { border-radius: 0; border-left-color: transparent; min-height: 16px; }
