@@ -27,8 +27,5 @@ jobs:
       - run: node script/file-feedback-issues.js
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          # service-role / secret key — the feedback table is insert-only under
-          # RLS, so the publishable key can't read it back. Add this secret in
-          # Settings -> Secrets and variables -> Actions.
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
