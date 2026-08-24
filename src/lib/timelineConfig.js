@@ -15,14 +15,18 @@ export const PAGE = {
 // The three phases. Dates are "YYYY-MM-DD", back-to-back in time.
 // These drive the focus card, the calendar's phase colors, and the
 // month labels — the overview bar was removed, but this data is still used.
+//
+// The phase colors are deliberately GRAY: the calendar is meant to be a
+// neutral backdrop so the only color in it comes from the events themselves
+// (see PEOPLE below). Keep them gray unless you want the phase tint back.
 export const PHASES = [
   {
     id: "together-now",
     label: "Together now",
     start: "2026-07-08",
     end: "2026-08-22",
-    color: "#e8a56b",
-    colorSoft: "#f6ddc4",
+    color: "#9e9e9e",
+    colorSoft: "#f1f1f1",
     message: "We're in it together right now. Soak it up. 🌞",
   },
   {
@@ -30,8 +34,8 @@ export const PHASES = [
     label: "Apart",
     start: "2026-08-22",
     end: "2026-12-18",
-    color: "#9db4c0",
-    colorSoft: "#dde7ec",
+    color: "#9e9e9e",
+    colorSoft: "#f1f1f1",
     message:
       "This is the stretch apart — but it's a chapter, not the story. Every day is one day closer. 💌",
   },
@@ -40,8 +44,8 @@ export const PHASES = [
     label: "Together after",
     start: "2026-12-18",
     end: "2027-05-31",
-    color: "#cf8fa9",
-    colorSoft: "#efd7e0",
+    color: "#9e9e9e",
+    colorSoft: "#f1f1f1",
     message: "Back together again — and this stretch is the longest of all. 🌸",
   },
 ];
@@ -57,12 +61,14 @@ export const CATEGORIES = [
 ];
 
 // Who an event belongs to. In the calendar, events are COLORED by
-// person (category still supplies the emoji). The first entry is the
-// default selection in the add-event dialog.
+// person (category still supplies the emoji) — and they're the ONLY thing
+// with color on an otherwise gray calendar: green when we're together,
+// blue for Juan's, yellow for Celine's. The first entry is the default
+// selection in the add-event dialog.
 export const PEOPLE = [
-  { id: "both", label: "Both of us", color: "#a3789c" },
-  { id: "celine", label: "Celine", color: "#d9a520" },
-  { id: "juan", label: "Juan", color: "#3d7a99" },
+  { id: "both", label: "Both of us", color: "#3f9c56" },
+  { id: "celine", label: "Celine", color: "#e0b32a" },
+  { id: "juan", label: "Juan", color: "#2f7fb5" },
 ];
 
 // Optional per-month notes/photos, keyed by "YYYY-MM".

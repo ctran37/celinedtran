@@ -191,7 +191,19 @@
   padding: 28px 24px; text-align: center; color: var(--tl-ink-soft); font-style: italic; margin: 0;
 }
 
-/* calendar */
+/* calendar
+   The calendar is deliberately colorless: the warm page palette is overridden
+   with grays for everything INSIDE .view-calendar (month cards, grid lines,
+   today marker, day numbers), so the only color in it comes from the event
+   bars — green = both of us, blue = Juan, yellow = Celine. */
+.tl .view-calendar {
+  --tl-surface:  #fcfcfc;
+  --tl-line:     #dcdcdc;
+  --tl-accent:   #6e6e6e;
+  --tl-ink:      #3f3f3f;
+  --tl-ink-soft: #8c8c8c;
+  --tl-shadow:   0 6px 24px rgba(0, 0, 0, 0.08);
+}
 .tl .cal-nav { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 10px; }
 .tl .cal-today {
   font-family: var(--tl-font-body); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
@@ -236,8 +248,8 @@
   padding: 4px 4px 5px; position: relative; cursor: pointer; transition: background 140ms ease;
   display: flex; flex-direction: column; gap: 3px;
 }
-.tl .cal-cell:hover { background: rgba(197,107,74,0.06); }
-.tl .cal-cell.blank { background: repeating-linear-gradient(45deg,#faf5ee,#faf5ee 6px,#f4ece0 6px,#f4ece0 12px); cursor: default; }
+.tl .cal-cell:hover { background: rgba(0,0,0,0.05); }
+.tl .cal-cell.blank { background: repeating-linear-gradient(45deg,#f6f6f6,#f6f6f6 6px,#ebebeb 6px,#ebebeb 12px); cursor: default; }
 .tl .cal-cell.out { opacity: 0.4; cursor: default; }
 .tl .cal-cell.out:hover { background: transparent; }
 .tl .cal-cell.today { box-shadow: inset 0 0 0 2px var(--tl-accent); }

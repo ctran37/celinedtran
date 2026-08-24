@@ -531,7 +531,9 @@ export default function Juan() {
                                     style={{
                                       gridColumn: `${seg.s + 1} / span ${days}`,
                                       gridRow: seg.lane + 2,
-                                      background: hexToRgba(who.color, e.pending ? 0.1 : 0.22),
+                                      // a touch stronger than it used to be: the grid
+                                      // underneath is gray now, so the fill is the only color
+                                      background: hexToRgba(who.color, e.pending ? 0.14 : 0.3),
                                       // the accent spine belongs only where the event actually starts
                                       borderLeftColor: seg.startsHere ? who.color : "transparent",
                                     }}
