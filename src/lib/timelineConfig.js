@@ -12,30 +12,58 @@ export const PAGE = {
   footer: "Made with love 💛",
 };
 
-// The three phases. Dates are "YYYY-MM-DD", back-to-back in time.
-// These drive the focus card, the calendar's phase colors, and the
-// month labels — the overview bar was removed, but this data is still used.
+// There are only ever two states: we're together, or we're away from each
+// other. Every day on the calendar is tinted with one of these two. The tint is
+// the ONLY background color in the calendar — the grid, borders and headings
+// stay gray (see juan.css), so the day tint and the event bars are what carry
+// color. Keep both `colorSoft` values pale: event bars are drawn on top of them.
+// Yellow means together, blue means apart.
 //
-// The phase colors are deliberately GRAY: the calendar is meant to be a
-// neutral backdrop so the only color in it comes from the events themselves
-// (see PEOPLE below). Keep them gray unless you want the phase tint back.
+// `colorSoft` is the day-cell fill and does the real work. The two are far
+// enough apart (ΔE ≈ 34) to tell at a glance, and both are kept pale: event
+// bars are drawn over them at 30% alpha and have to stay legible — including
+// Juan's blue bar sitting on a blue day, which is the tightest case here.
+// Deepening either much further starts to swallow the bars.
+// `colorSoft` is the original yellow lightened over white, so the day tint is
+// recognisably the same yellow rather than a new one.
+export const STATES = {
+  together: { id: "together", label: "Together", color: "#e8a56b", colorSoft: "#f6ddc4" },
+  away:     { id: "away",     label: "Apart",    color: "#3f82b5", colorSoft: "#cfe0ee" },
+};
+
+// An event marked "Both of us" says the two of you are in the same place, so
+// its days go yellow even in the middle of the apart stretch — that's what
+// makes a "Juan visits" event light up its days with no extra marking. An event
+// belonging to just ONE of you says the opposite: you're apart for those days,
+// so they go blue even in the middle of a together stretch.
+export const TOGETHER_PERSON = "both";
+
+// The three phases. Dates are "YYYY-MM-DD", back-to-back in time, and `end` is
+// EXCLUSIVE — it's the same day as the next phase's `start`, and that day
+// belongs to the NEXT phase. So "apart" starting 2026-08-24 means Aug 24 is the
+// first day away, and Dec 18 is the first day back together.
+//
+// `state` is the baseline for every day in the phase. Individual events can
+// flip a single day away from that baseline — see STATE_CATEGORIES below.
 export const PHASES = [
   {
     id: "together-now",
     label: "Together now",
     start: "2026-07-08",
-    end: "2026-08-22",
-    color: "#9e9e9e",
-    colorSoft: "#f1f1f1",
+    end: "2026-08-24",
+    state: "together",
+    color: STATES.together.color,
+    colorSoft: STATES.together.colorSoft,
     message: "We're in it together right now. Soak it up. 🌞",
   },
   {
     id: "apart",
     label: "Apart",
-    start: "2026-08-22",
+    start: "2026-08-24",
     end: "2026-12-18",
-    color: "#9e9e9e",
-    colorSoft: "#f1f1f1",
+    state: "away",
+    color: STATES.away.color,
+    colorSoft: STATES.away.colorSoft,
     message:
       "This is the stretch apart — but it's a chapter, not the story. Every day is one day closer. 💌",
   },
@@ -44,8 +72,9 @@ export const PHASES = [
     label: "Together after",
     start: "2026-12-18",
     end: "2027-05-31",
-    color: "#9e9e9e",
-    colorSoft: "#f1f1f1",
+    state: "together",
+    color: STATES.together.color,
+    colorSoft: STATES.together.colorSoft,
     message: "Back together again — and this stretch is the longest of all. 🌸",
   },
 ];
@@ -53,18 +82,33 @@ export const PHASES = [
 // Event categories. `id` is stored on each event row in Supabase.
 // Any id that isn't listed here (older rows: visit / call / birthday /
 // milestone) falls back to "other", so nothing already saved disappears.
+//
+// "Together" and "Apart" are special: they don't just label an event, they
+// RE-TINT the days they cover (see STATE_CATEGORIES). Most of the time you
+// won't need them — marking an event "Both of us" is enough to turn its days
+// green. Reach for "Apart" when you're separated during a together stretch.
+// `holiday` must stay first: it's the dialog's default.
 export const CATEGORIES = [
   { id: "holiday", label: "Holiday", emoji: "🎄", color: "#c56b4a" },
   { id: "vacation", label: "Vacation", emoji: "✈️", color: "#7fa15a" },
   { id: "schoolwork", label: "School/Work", emoji: "📚", color: "#5a8fa1" },
+  { id: "together", label: "Together", emoji: "💛", color: STATES.together.color },
+  { id: "away", label: "Apart", emoji: "🛫", color: STATES.away.color },
   { id: "other", label: "Other", emoji: "📅", color: "#8a7d73" },
 ];
 
-// Who an event belongs to. In the calendar, events are COLORED by
-// person (category still supplies the emoji) — and they're the ONLY thing
-// with color on an otherwise gray calendar: green when we're together,
-// blue for Juan's, yellow for Celine's. The first entry is the default
-// selection in the add-event dialog.
+// Which categories re-tint the days they cover, and to what state. Combined
+// with TOGETHER_PERSON above, a day can pick up a "together" signal, an "away"
+// signal, or both. Whichever one CONTRADICTS the phase baseline wins: an
+// "Apart" event inside a together stretch makes those days red, and a "Both of
+// us" (or "Together") event inside the apart stretch makes those days green.
+// That's the whole point of them, so they beat every other event on the day.
+export const STATE_CATEGORIES = { together: "together", away: "away" };
+
+// Who an event belongs to. Event BARS are colored by person (category still
+// supplies the emoji): green when it's both of us, blue for Juan's, yellow for
+// Celine's. The day tint underneath them comes from STATES, not from here.
+// The first entry is the default selection in the add-event dialog.
 export const PEOPLE = [
   { id: "both", label: "Both of us", color: "#3f9c56" },
   { id: "celine", label: "Celine", color: "#e0b32a" },
@@ -76,8 +120,9 @@ export const NOTES = {
   // "2026-08": { note: "Last weekend before the airport.", photo: "" },
 };
 
-// Suggested quick-pick emojis in the add-event dialog.
-export const EMOJI_PALETTE = ["💛", "✈️", "🎄", "📚", "💼", "🏖️", "🤗", "🎂", "🌸", "🎁", "📅", "🌞"];
+// (There used to be an EMOJI_PALETTE of quick-pick emojis here. The dialog now
+// takes any emoji straight from the OS emoji keyboard, so the preset list is
+// gone — each CATEGORY above still supplies the default emoji for its events.)
 
 // ---------- shared date helpers ----------
 export function parseDate(s) {

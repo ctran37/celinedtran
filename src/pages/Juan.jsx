@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase.js";
 import {
-  PAGE, PHASES, CATEGORIES, PEOPLE, NOTES, EMOJI_PALETTE,
+  PAGE, PHASES, CATEGORIES, PEOPLE, NOTES, STATES, STATE_CATEGORIES, TOGETHER_PERSON,
   parseDate, stripTime, dayDiff, sameDay, clamp, pad, monthKey, dateStr,
   hexToRgba, MONTH_NAMES, WEEKDAYS, fmtShort, fmtLong,
 } from "../lib/timelineConfig.js";
@@ -16,6 +16,23 @@ const EMPTY_FORM = { open: false, id: null, start: "", end: "", text: "", emoji:
 
 const focusText = () =>
   setTimeout(() => { const el = document.getElementById("tl-ev-text"); if (el) el.focus(); }, 50);
+
+// The emoji field takes whatever the OS emoji keyboard sends, so it has to cope
+// with emoji that are SEVERAL code points joined together — 👨‍👩‍👧 is eight UTF-16
+// units, 🏳️‍🌈 is six, 👍🏽 is four. Slicing those by character (the old
+// maxLength={4}) cuts them mid-sequence and renders rubble, so we keep the first
+// GRAPHEME instead: one picked emoji, however many code points it's made of.
+const SEGMENTER = typeof Intl !== "undefined" && Intl.Segmenter
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+  : null;
+const firstGrapheme = (s) => {
+  if (!s) return "";
+  if (SEGMENTER) {
+    for (const { segment } of SEGMENTER.segment(s)) return segment;
+    return "";
+  }
+  return Array.from(s)[0] || "";   // fallback: splits ZWJ sequences, but nothing modern lands here
+};
 
 export default function Juan() {
   // ---- static config, parsed once ----
@@ -140,6 +157,67 @@ export default function Juan() {
       fetchEvents();
     }
   }, [fetchEvents]);
+
+  // ---- together / away state per day ----
+  // Every day starts with its phase's baseline state, and a "Together" or
+  // "Away" event can flip it. Built once per render as a date -> {away,
+  // together} map so each day cell is a single lookup rather than a scan.
+  //
+  // This deliberately reads ALL events, not the filtered ones: whether we were
+  // together on a given day is a fact about that day, so toggling a category
+  // chip off shouldn't repaint the calendar.
+  const stateOverrides = useMemo(() => {
+    const m = new Map();
+    for (const e of events) {
+      // Every event says something about where you two are: "Both of us" means
+      // together, one name means apart. The explicit Together/Apart categories
+      // beat that reading, so they're the escape hatch when the person doesn't
+      // tell the truth — Celine's event on a day you're actually together.
+      const st = STATE_CATEGORIES[e.cat]
+        || (e.person === TOGETHER_PERSON ? "together" : "away");
+      for (const d = new Date(e.startD); d <= e.endD; d.setDate(d.getDate() + 1)) {
+        const k = dateStr(d);
+        const cur = m.get(k) || {};
+        cur[st] = true;
+        m.set(k, cur);
+      }
+    }
+    return m;
+  }, [events]);
+
+  // The state a day actually ends up in. An override only counts when it
+  // CONTRADICTS the baseline — an "Away" event during a together stretch, or a
+  // "Together" event during the apart stretch — which is also what settles the
+  // tie when both kinds of event land on the same day.
+  const stateForDate = useCallback((d) => {
+    const phase = phaseForDate(d);
+    const base = phase ? phase.state : null;
+    const o = stateOverrides.get(dateStr(d));
+    if (o) {
+      if (base === "together" && o.away) return "away";
+      if (base === "away" && o.together) return "together";
+      if (!base) return o.away ? "away" : o.together ? "together" : null;
+    }
+    return base;
+  }, [phaseForDate, stateOverrides]);
+
+  // A month is only tinted when ALL of its in-arc days agree. August 2026 is
+  // together until the 24th and away after it, so tinting its header from a
+  // single sampled day would paint it peach over a mostly-blue month — mixed
+  // months stay neutral and let the day cells tell the story.
+  const monthState = useCallback((y, m) => {
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    let seen = null;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(y, m, day);
+      if (d < arcStart || d > arcEnd) continue;
+      const st = stateForDate(d);
+      if (!st) continue;
+      if (seen === null) seen = st;
+      else if (seen !== st) return null;      // mixed
+    }
+    return seen;
+  }, [stateForDate, arcStart, arcEnd]);
 
   // ---- category filter ----
   const [activeCats, setActiveCats] = useState(() => {
@@ -407,11 +485,25 @@ export default function Juan() {
           </div>
 
           <div className="people-legend">
-            <span className="legend-label">Colored by</span>
+            <span className="legend-label">Bars</span>
             {PEOPLE.map((p) => (
               <span key={p.id} className="legend-item"><span className="dot" style={{ background: p.color }} />{p.label}</span>
             ))}
             <span className="legend-item"><span className="dash-key" />dashed = pending</span>
+          </div>
+
+          {/* the day shading, which is a different axis from the bars above */}
+          <div className="people-legend">
+            <span className="legend-label">Days</span>
+            {Object.values(STATES).map((s) => (
+              <span key={s.id} className="legend-item">
+                <span className="swatch" style={{ background: s.colorSoft, borderColor: s.color }} />{s.label}
+              </span>
+            ))}
+            <span className="legend-item legend-note">
+              “{PEOPLE[0].label}” events turn their days {STATES.together.label.toLowerCase()};
+              one-name events turn them {STATES.away.label.toLowerCase()}
+            </span>
           </div>
 
           {/* past months are filtered out, so this empties once the arc ends */}
@@ -490,12 +582,15 @@ export default function Juan() {
                   const key = `${y}-${pad(m + 1)}`;
                   const phase = phaseForMonth(y, m);
                   const monthEvents = visibleEvents.filter((e) => overlapsMonth(e, y, m));
+                  // null when the month straddles a change — then the head stays
+                  // neutral rather than claiming one state for the whole month
+                  const mState = STATES[monthState(y, m)];
                   return (
                     <div key={key} className={`cal-month ${key === curMonthKey ? "is-current" : ""}`}
-                      style={{ borderTop: phase ? `6px solid ${phase.color}` : undefined }}>
-                      <div className="cal-month-head" style={{ background: phase ? phase.colorSoft : undefined }}>
+                      style={{ borderTop: mState ? `6px solid ${mState.color}` : undefined }}>
+                      <div className="cal-month-head" style={{ background: mState ? mState.colorSoft : undefined }}>
                         <h3>{MONTH_NAMES[m]} {y}</h3>
-                        <span className="cal-phase">{phase ? phase.label : ""}</span>
+                        <span className="cal-phase">{mState ? mState.label : phase ? phase.label : ""}</span>
                       </div>
                       <div className="cal-grid">
                         {WEEKDAYS.map((w) => <div key={w} className="cal-weekday">{w}</div>)}
@@ -511,10 +606,13 @@ export default function Juan() {
                               {week.map((d, i) => {
                                 if (!d) return <div key={`b${i}`} className="cal-cell blank" style={{ gridColumn: i + 1 }} />;
                                 const inArc = d >= arcStart && d <= arcEnd;
-                                const dayPhase = phaseForDate(d);
+                                // the day's tint is the together/away state, which an
+                                // event may have flipped away from the phase baseline
+                                const dayState = inArc ? STATES[stateForDate(d)] : null;
                                 return (
                                   <div key={`d${i}`} className={`cal-cell ${!inArc ? "out" : ""} ${sameDay(d, now) ? "today" : ""}`}
-                                    style={{ gridColumn: i + 1, background: inArc && dayPhase ? dayPhase.colorSoft : undefined }}
+                                    style={{ gridColumn: i + 1, background: dayState ? dayState.colorSoft : undefined }}
+                                    title={dayState ? `${fmtShort(d)} — ${dayState.label.toLowerCase()}` : undefined}
                                     onClick={inArc ? () => openModal(dateStr(d)) : undefined}>
                                     <div className="cal-daynum">{d.getDate()}</div>
                                   </div>
@@ -617,14 +715,23 @@ export default function Juan() {
               value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} />
 
             <label htmlFor="tl-ev-emoji">Emoji <span className="sub">(optional — defaults to the category's)</span></label>
-            <input id="tl-ev-emoji" type="text" maxLength={4} placeholder="🌸"
-              value={form.emoji} onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))} />
-            <div className="emoji-row">
-              {EMOJI_PALETTE.map((em) => (
-                <button type="button" key={em} className="emoji-chip"
-                  onClick={() => setForm((f) => ({ ...f, emoji: em }))}>{em}</button>
-              ))}
+            <div className="emoji-field">
+              <input id="tl-ev-emoji" type="text" className="emoji-input" placeholder="🌸"
+                autoComplete="off" maxLength={32} aria-describedby="tl-ev-emoji-hint"
+                value={form.emoji}
+                onChange={(e) => setForm((f) => ({ ...f, emoji: firstGrapheme(e.target.value) }))} />
+              {form.emoji && (
+                /* the only way back to "inherit the category's emoji" now that
+                   the preset chips are gone — clearing the field by hand works
+                   too, but this says what blank actually MEANS */
+                <button type="button" className="emoji-clear"
+                  onClick={() => setForm((f) => ({ ...f, emoji: "" }))}>Use category emoji</button>
+              )}
             </div>
+            <p className="emoji-hint" id="tl-ev-emoji-hint">
+              Click the box, then open your emoji keyboard: <kbd>⌃</kbd> <kbd>⌘</kbd> <kbd>Space</kbd> on
+              a Mac, <kbd>Win</kbd> <kbd>.</kbd> on Windows, or the 🙂 key on your phone.
+            </p>
 
             <label>Whose event?</label>
             <div className="cat-pick">
@@ -642,7 +749,11 @@ export default function Juan() {
               {CATEGORIES.map((c) => (
                 <button type="button" key={c.id}
                   className={`cat-pick-chip ${form.cat === c.id ? "selected" : ""}`}
-                  onClick={() => setForm((f) => ({ ...f, cat: c.id, emoji: f.emoji || c.emoji }))}>
+                  /* picking a category no longer writes its emoji into the field —
+                     the emoji is yours to choose. A blank field still FALLS BACK to
+                     the category's emoji at display time (see evEmoji), which is what
+                     keeps single-day bars from rendering empty on mobile. */
+                  onClick={() => setForm((f) => ({ ...f, cat: c.id }))}>
                   <span className="dot" style={{ background: c.color }} />{c.emoji} {c.label}
                 </button>
               ))}

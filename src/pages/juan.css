@@ -127,6 +127,10 @@
 .tl .people-legend .legend-label { text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.68rem; }
 .tl .people-legend .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .tl .people-legend .dot { width: 11px; height: 11px; border-radius: 50%; }
+/* day-shading key: a filled tile in the same soft tint the day cells use,
+   outlined in the strong version so a pale fill is still visible */
+.tl .people-legend .swatch { width: 15px; height: 13px; border-radius: 3px; border: 1px solid; }
+.tl .people-legend .legend-note { font-style: italic; opacity: 0.85; }
 .tl .people-legend .dash-key {
   width: 16px; height: 10px; border-radius: 3px;
   border: 1px dashed var(--tl-ink-soft); background: transparent;
@@ -341,9 +345,26 @@
 }
 .tl-modal .cat-pick-chip .dot { width: 10px; height: 10px; border-radius: 50%; }
 .tl-modal .cat-pick-chip.selected { border-color: #4a3f39; background: #fff; font-weight: bold; }
-.tl-modal .emoji-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.tl-modal .emoji-chip { border: 1px solid #e7dccd; background: #fbf6ef; border-radius: 8px; cursor: pointer; font-size: 1rem; padding: 4px 7px; }
-.tl-modal .emoji-chip:hover { border-color: #c56b4a; }
+/* emoji: one free-form field fed by the OS emoji keyboard (there are no preset
+   chips any more, and no browser API to pop the picker open for you). The input
+   is deliberately narrow — it only ever holds a single glyph. */
+.tl-modal .emoji-field { display: flex; align-items: center; gap: 10px; }
+.tl-modal input.emoji-input {
+  width: 3.4em; flex: 0 0 auto; text-align: center;
+  font-size: 1.35rem; line-height: 1.2; padding: 6px 4px;
+}
+.tl-modal .emoji-clear {
+  flex: 0 0 auto; font-family: "Georgia", serif; font-size: 0.75rem; color: #8a7d73;
+  background: transparent; border: 1px dashed #e7dccd; border-radius: 999px;
+  padding: 4px 10px; cursor: pointer;
+}
+.tl-modal .emoji-clear:hover { border-color: #c56b4a; color: #4a3f39; }
+.tl-modal .emoji-hint { margin: 7px 0 0; font-size: 0.74rem; color: #8a7d73; line-height: 1.5; }
+.tl-modal .emoji-hint kbd {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em;
+  border: 1px solid #e7dccd; border-bottom-width: 2px; border-radius: 4px;
+  background: #fbf6ef; padding: 0 4px; color: #4a3f39;
+}
 .tl-modal .modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; }
 .tl-modal .tl-btn.danger { margin-right: auto; color: #b23b3b; padding: 8px 14px; }
 .tl-modal .tl-btn.danger:hover { background: #f6e3e3; }
