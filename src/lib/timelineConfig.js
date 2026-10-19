@@ -70,7 +70,7 @@ export const PHASES = [
   {
     id: "together-after",
     label: "Together after",
-    start: "2026-12-18",
+    start: "2026-12-13",
     end: "2027-05-31",
     state: "together",
     color: STATES.together.color,
