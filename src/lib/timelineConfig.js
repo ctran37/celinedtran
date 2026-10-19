@@ -60,7 +60,7 @@ export const PHASES = [
     id: "apart",
     label: "Apart",
     start: "2026-08-24",
-    end: "2026-12-18",
+    end: "2026-12-13",
     state: "away",
     color: STATES.away.color,
     colorSoft: STATES.away.colorSoft,
