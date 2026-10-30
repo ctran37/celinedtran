@@ -1,9 +1,9 @@
 name: File Feedback as Issues
 
 on:
-  schedule:
-    # every hour at :23 (off the hour — GitHub delays runs that pile up on :00)
-    - cron: "23 * * * *"
+  # Hourly schedule paused. To resume, add back under `on:`:
+  #   schedule:
+  #     - cron: "23 * * * *"
   workflow_dispatch: # manual trigger from the Actions tab
 
 # GITHUB_TOKEN is read-only by default; opening issues needs this.
