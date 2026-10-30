@@ -56,3 +56,8 @@
 .hw-score td.tot { font-weight: 800; color: #ff9d4d; }
 
 .hw-leave { align-self: center; background: none; border: 0; color: #6c5488; font-size: 12px; text-decoration: underline; margin-top: 8px; }
+
+.hw-drink { background: #3a1330; border: 1px solid #ff5d8f; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; }
+.hw-score td.lose { color: #ff6b8f; font-weight: 800; }
+.hw-bar button.next { width: auto; padding: 0 14px; font-size: 14px; font-weight: 700; background: #ff7a1a; color: #1a0b00; }
+.hw-foot { display: flex; justify-content: center; gap: 20px; }
