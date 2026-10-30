@@ -41,7 +41,7 @@ export const TOGETHER_PERSON = "both";
 // The three phases. Dates are "YYYY-MM-DD", back-to-back in time, and `end` is
 // EXCLUSIVE — it's the same day as the next phase's `start`, and that day
 // belongs to the NEXT phase. So "apart" starting 2026-08-24 means Aug 24 is the
-// first day away, and Dec 18 is the first day back together.
+// first day away, and Dec 13 is the first day back together.
 //
 // `state` is the baseline for every day in the phase. Individual events can
 // flip a single day away from that baseline — see STATE_CATEGORIES below.
