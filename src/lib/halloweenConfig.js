@@ -76,16 +76,27 @@ function mulberry32(a) {
   };
 }
 
+// Every board gets the same mix of point values, so every card is worth the
+// same total (12 + 24 + 20 = 56) and nobody is lucky or unlucky on the draw.
+export const MIX = { 1: 12, 3: 8, 5: 4 };
+
 // 25 cells, row-major; cell 12 is FREE. Same seed -> same board, so a refresh
 // (or a second phone) can't reroll it.
 export function makeBoard(seed) {
   const rand = mulberry32(hash(seed)());
-  const idx = POOL.map((_, i) => i);
-  for (let i = idx.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [idx[i], idx[j]] = [idx[j], idx[i]];
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+  const cells = [];
+  for (const [pts, n] of Object.entries(MIX)) {
+    const tier = POOL.map((sq, i) => (sq.p === Number(pts) ? i : -1)).filter((i) => i >= 0);
+    cells.push(...shuffle(tier).slice(0, n));
   }
-  const cells = idx.slice(0, 24);
+  shuffle(cells);
   cells.splice(12, 0, FREE);
   return cells;
 }
