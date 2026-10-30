@@ -6,12 +6,14 @@ import CreateBracket from "./pages/CreateBracket.jsx";
 import ViewBracket from "./pages/ViewBracket.jsx";
 import AdminMatches from "./pages/AdminMatches.jsx";
 import Juan from "./pages/Juan.jsx";
+import Halloween from "./pages/Halloween.jsx";
 
 export default function App() {
   return (
     <Routes>
       {/* Standalone full-page route, intentionally outside Layout (no site nav) */}
       <Route path="juan" element={<Juan />} />
+      <Route path="halloween" element={<Halloween />} />
       <Route element={<Layout />}>
         <Route index element={<About />} />
         <Route path="roland-garros-2026" element={<TournamentHome />} />
