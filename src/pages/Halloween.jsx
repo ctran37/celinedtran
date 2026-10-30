@@ -71,19 +71,21 @@ function Game({ me, setMe }) {
   const [tab, setTab] = useState("card");
   const [players, setPlayers] = useState([]);
   const [marks, setMarks] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const board = useMemo(() => makeBoard(`${room}:${me.playerId}`), [room, me.playerId]);
 
   const refresh = useCallback(async () => {
     const [p, m] = await Promise.all([
-      supabase.from("halloween_players").select("player_id, name").eq("room", room),
+      supabase.from("halloween_players").select("player_id, name, bar").eq("room", room),
       supabase.from("halloween_marks").select("player_id, square, bar").eq("room", room),
     ]);
     if (p.error || m.error) { setError("Offline, retrying…"); return; }
     setError("");
     setPlayers(p.data);
     setMarks(m.data);
+    setLoaded(true);
   }, [room]);
 
   useEffect(() => {
@@ -91,6 +93,11 @@ function Game({ me, setMe }) {
     const t = setInterval(refresh, POLL_MS);
     return () => { clearTimeout(first); clearInterval(t); };
   }, [refresh]);
+
+  // The game was reset (our player row is gone): send this phone back to the join screen.
+  useEffect(() => {
+    if (loaded && !players.some((p) => p.player_id === me.playerId)) setMe(null);
+  }, [loaded, players, me.playerId, setMe]);
 
   const myMarks = useMemo(() => marks.filter((m) => m.player_id === me.playerId), [marks, me.playerId]);
   const myBar = useMemo(() => new Map(myMarks.map((m) => [m.square, m.bar])), [myMarks]);
@@ -111,6 +118,25 @@ function Game({ me, setMe }) {
     refresh();
   };
 
+  const goToBar = async (bar) => {
+    setMe({ ...me, bar });
+    setPlayers((prev) => prev.map((p) => (p.player_id === me.playerId ? { ...p, bar } : p)));
+    const { error: err } = await supabase
+      .from("halloween_players")
+      .update({ bar })
+      .match({ room, player_id: me.playerId });
+    if (err) setError("Couldn't save your bar.");
+    refresh();
+  };
+
+  const reset = async () => {
+    const pw = prompt("Reset the game for EVERYONE? Enter the password:");
+    if (pw === null) return;
+    const { error: err } = await supabase.rpc("halloween_reset", { pw });
+    if (err) { alert(err.message.includes("wrong password") ? "Wrong password." : "Couldn't reset. Try again."); return; }
+    setMe(null);
+  };
+
   const leave = () => {
     if (confirm("Leave this game? You'll get a new board if you rejoin.")) setMe(null);
   };
@@ -125,9 +151,9 @@ function Game({ me, setMe }) {
       </header>
 
       <div className="hw-bar">
-        <button onClick={() => setMe({ ...me, bar: Math.max(1, me.bar - 1) })} aria-label="previous bar">‹</button>
+        <button onClick={() => goToBar(Math.max(1, me.bar - 1))} aria-label="previous bar">‹</button>
         <span>🍻 Bar {me.bar}</span>
-        <button onClick={() => setMe({ ...me, bar: Math.min(BARS, me.bar + 1) })} aria-label="next bar">›</button>
+        <button onClick={() => goToBar(Math.min(BARS, me.bar + 1))} aria-label="next bar" className="next">Next bar ›</button>
       </div>
 
       <nav className="hw-tabs">
@@ -166,7 +192,10 @@ function Game({ me, setMe }) {
         <Scoreboard players={players} marks={marks} room={room} meId={me.playerId} />
       )}
 
-      <button className="hw-leave" onClick={leave}>leave game</button>
+      <div className="hw-foot">
+        <button className="hw-leave" onClick={leave}>leave game</button>
+        <button className="hw-leave" onClick={reset}>reset game</button>
+      </div>
     </div>
   );
 }
@@ -186,19 +215,30 @@ function Scoreboard({ players, marks, room, meId }) {
       .sort((a, b) => b.total - a.total || b.lines - a.lines || a.name.localeCompare(b.name));
   }, [players, marks, room]);
 
-  const lastBar = Math.max(1, ...marks.map((m) => m.bar));
+  const lastBar = Math.max(1, ...marks.map((m) => m.bar), ...players.map((p) => p.bar ?? 1));
   const bars = Array.from({ length: lastBar }, (_, i) => i + 1);
   // winner of each bar = best round score there (ties share it)
   const best = Object.fromEntries(bars.map((b) => [b, Math.max(0, ...rows.map((r) => r.perBar[b] ?? 0))]));
+  // A bar is over once anyone has moved on to the next one. Lowest score in a
+  // finished bar drinks (ties all drink).
+  const worst = Object.fromEntries(bars.map((b) => [b, Math.min(...rows.map((r) => r.perBar[b] ?? 0))]));
+  const drinksIn = (r, b) => b < lastBar && (r.perBar[b] ?? 0) === worst[b];
+  const drinkers = (b) => rows.filter((r) => drinksIn(r, b)).map((r) => r.name);
+  const lastDone = lastBar - 1;
 
   return (
     <div className="hw-score">
+      {lastDone >= 1 && rows.length > 0 && (
+        <div className="hw-drink">
+          🍺 Bar {lastDone} is done. Lowest score drinks: <strong>{drinkers(lastDone).join(", ")}</strong>
+        </div>
+      )}
       <table>
         <thead>
           <tr>
             <th>#</th><th>player</th>
             {bars.map((b) => <th key={b}>B{b}</th>)}
-            <th>total</th>
+            <th>total</th><th>🍺</th>
           </tr>
         </thead>
         <tbody>
@@ -208,14 +248,16 @@ function Scoreboard({ players, marks, room, meId }) {
               <td>{r.name}{r.blackout ? " 👑" : r.lines ? ` ×${r.lines}` : ""}</td>
               {bars.map((b) => {
                 const v = r.perBar[b] ?? 0;
-                return <td key={b} className={v > 0 && v === best[b] ? "win" : ""}>{v || "·"}</td>;
+                const cls = drinksIn(r, b) ? "lose" : v > 0 && v === best[b] ? "win" : "";
+                return <td key={b} className={cls}>{v || "·"}</td>;
               })}
               <td className="tot">{r.total}</td>
+              <td>{bars.filter((b) => drinksIn(r, b)).length || "·"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="hw-hint">×N = bingo lines · 👑 = blackout · highlighted = best of that bar · updates every few seconds</p>
+      <p className="hw-hint">×N = bingo lines · 👑 = blackout · gold = best of that bar · red = lowest of a finished bar (drinks) · 🍺 = drinks owed · updates every few seconds</p>
     </div>
   );
 }
