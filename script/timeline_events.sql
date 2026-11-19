@@ -50,4 +50,4 @@ alter publication supabase_realtime add table public.timeline_events;
 insert into public.timeline_events (start_date, end_date, category, person, emoji, text) values
   ('2026-08-20', '2026-08-22', 'visit',     'both', '',   'Last days before the airport'),
   ('2026-08-22', '2026-08-22', 'milestone', 'both', '✈️', 'Goodbye-for-now day'),
-  ('2026-12-18', '2026-12-18', 'visit',     'both', '🤗', 'Reunited!');
+  ('2026-12-10', '2026-12-10', 'visit',     'both', '🤗', 'Reunited!');

@@ -41,7 +41,7 @@ export const TOGETHER_PERSON = "both";
 // The three phases. Dates are "YYYY-MM-DD", back-to-back in time, and `end` is
 // EXCLUSIVE — it's the same day as the next phase's `start`, and that day
 // belongs to the NEXT phase. So "apart" starting 2026-08-24 means Aug 24 is the
-// first day away, and Dec 13 is the first day back together.
+// first day away, and Dec 10 is the first day back together.
 //
 // `state` is the baseline for every day in the phase. Individual events can
 // flip a single day away from that baseline — see STATE_CATEGORIES below.
@@ -60,7 +60,7 @@ export const PHASES = [
     id: "apart",
     label: "Apart",
     start: "2026-08-24",
-    end: "2026-12-13",
+    end: "2026-12-10",
     state: "away",
     color: STATES.away.color,
     colorSoft: STATES.away.colorSoft,
@@ -70,9 +70,12 @@ export const PHASES = [
   {
     id: "together-after",
     label: "Together after",
-    start: "2026-12-13",
+    start: "2026-12-10",
     end: "2027-05-31",
     state: "together",
+    // Events can't flip these days to "away": we're together, so the tint stays
+    // yellow whoever an event belongs to (only the event bar shows the person).
+    locked: true,
     color: STATES.together.color,
     colorSoft: STATES.together.colorSoft,
     message: "Back together again — and this stretch is the longest of all. 🌸",

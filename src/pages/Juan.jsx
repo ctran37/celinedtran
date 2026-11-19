@@ -192,6 +192,7 @@ export default function Juan() {
   const stateForDate = useCallback((d) => {
     const phase = phaseForDate(d);
     const base = phase ? phase.state : null;
+    if (phase && phase.locked) return base;
     const o = stateOverrides.get(dateStr(d));
     if (o) {
       if (base === "together" && o.away) return "away";
